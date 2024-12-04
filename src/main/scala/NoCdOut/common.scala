@@ -53,7 +53,7 @@ class GameParameters( params : GameParametersInput )
     val max_fleet_hp_len        = bits.needed( params.max_fleet_hp ) // no -1
 }
 
-class GeneralID( num_players_len : Int general_len : Int ) extends Bundle
+class GeneralID( num_players_len : Int, general_len : Int ) extends Bundle
 {
     val side            = UInt( num_players_len.W )
     val general_owned   = UInt( general_len.W )
@@ -75,10 +75,11 @@ class ScoutData( x_len : Int, y_len : Int, num_players_len : Int ) extends Bundl
 //class Ship( x_len : Int, y_len : Int, num_players_len : Int, general_len : Int, num_ship_classes_len : Int, max_fleet_hp_len ) extends Bundle
 class Ship( params : GameParameters ) extends Bundle
 {
-    val src         = new Coordinates( params.x_len, params.y_len )
-    val dst         = new Coordinates( params.x_len, params.y_len )
-    val general_id  = new GeneralID( params.num_players_len, params.general_len )
+    val src         = new Coordinates( params.noc_x_size_len, params.noc_y_size_len )
+    val dst         = new Coordinates( params.noc_x_size_len, params.noc_y_size_len )
+    val general_id  = new GeneralID( params.num_players_len, params.num_generals_len )
     val ship_class  = UInt( params.num_ship_classes_len.W )
     val fleet_hp    = UInt( params.max_fleet_hp_len.W )
-    val scout_data  = new ScoutData( params.x_len, params.y_len, params.num_players_len )
+    val scout_data  = new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len )
 }
+
