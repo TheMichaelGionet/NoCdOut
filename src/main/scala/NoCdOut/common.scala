@@ -83,6 +83,5 @@ class Ship( params : GameParameters ) extends Bundle
     val scout_data  = new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len )
     val valid = UInt(1.W)
     val backpressured = UInt(1.W)
-    val team = UInt(params.num_players_len.W)
 }
 
