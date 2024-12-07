@@ -24,12 +24,14 @@ object bits
 
 class GameParametersInput
 {
-    var num_players         = 2;
-    var num_generals        = 5;
-    var noc_x_size          = 64;
-    var noc_y_size          = 64;
-    var num_ship_classes    = 5;
-    var max_fleet_hp        = 20;
+    var num_players         = 0x2;
+    var num_generals        = 0x5;
+    var noc_x_size          = 0x40;
+    var noc_y_size          = 0x40;
+    var num_ship_classes    = 0x5;
+    var max_fleet_hp        = 0xff;
+    var max_turret_hp       = 0xff;
+    var max_resource_val    = 0xffff;
 }
 
 class GameParameters( params : GameParametersInput )
@@ -51,6 +53,12 @@ class GameParameters( params : GameParametersInput )
 
     val max_fleet_hp            = params.max_fleet_hp
     val max_fleet_hp_len        = bits.needed( params.max_fleet_hp ) // no -1
+
+    val max_turret_hp           = params.max_turret_hp
+    val max_turret_hp_len       = bits.needed( params.max_turret_hp ) // no -1
+
+    val max_resource_val        = params.max_resource_val
+    val max_resource_val_len    = bits.needed( params.max_resource_val ) // no -1
 }
 
 class GeneralID( num_players_len : Int, general_len : Int ) extends Bundle
@@ -81,5 +89,16 @@ class Ship( params : GameParameters ) extends Bundle
     val ship_class  = UInt( params.num_ship_classes_len.W )
     val fleet_hp    = UInt( params.max_fleet_hp_len.W )
     val scout_data  = new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len )
+}
+
+object ShipClasses
+{
+    val scout       = 0
+    val basic       = 1
+    val attack      = 2
+    val defence     = 3
+    val beefer      = 4
+    val destroyer   = 5
+    val count       = 6
 }
 
