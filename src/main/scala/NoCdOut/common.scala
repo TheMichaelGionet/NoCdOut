@@ -89,6 +89,8 @@ class Ship( params : GameParameters ) extends Bundle
     val ship_class  = UInt( params.num_ship_classes_len.W )
     val fleet_hp    = UInt( params.max_fleet_hp_len.W )
     val scout_data  = new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len )
+    val valid = UInt(1.W)
+    val backpressured = UInt(1.W)
 }
 
 object ShipClasses
