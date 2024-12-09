@@ -42,6 +42,14 @@ abstract class GeneralDFA( params : GameParameters, val buffs : GeneralBuffs ) e
     } )
 }
 
+class GeneralNoneBuffs( params : GameParameters ) extends GeneralBuffs( params )
+{
+    def resource_prod_buff  = 1.0
+    def combat_buff         = 1.0
+    def cost_buff           = 1.0
+    def routing_behavior    = 0
+}
+
 class GeneralJeffBuffs( params : GameParameters ) extends GeneralBuffs( params )
 {
     def resource_prod_buff  = 1.0
@@ -83,6 +91,19 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
     io.command_ship     := io.ship_valid && ( io.ship_it_sees.general_id.general_owned === general_id.U )
     io.command_where.x  := x_loc // send ships randomly
     io.command_where.y  := y_loc
+}
+
+abstract class GeneralBuilder( params : GameParameters, general_id : Int )
+{
+    var buffs       : GeneralBuffs  = new GeneralNoneBuffs( params )
+    def gen()       : GeneralDFA
+    def apply()     : GeneralDFA    = gen()
+}
+
+class GeneralJeffBuilder( params : GameParameters, general_id : Int ) extends GeneralBuilder( params, general_id )
+{
+    buffs       = new GeneralJeffBuffs( params )
+    def gen()   = new GeneralJeffDFA( params, buffs, general_id )
 }
 
 
