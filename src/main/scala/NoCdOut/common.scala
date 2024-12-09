@@ -104,3 +104,43 @@ object ShipClasses
     val count       = 6
 }
 
+// FIFO implemented as a ring buffer
+class FIFO[T <: chisel3.Data]( n : Int, dt : T ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val in  = Flipped( Decoupled( dt ) )
+        val out = Decoupled( dt )
+    })
+    
+    val storage         = Reg( Vec( n, dt ) )
+    
+    val write_ptr       = RegInit( 0.U( bits.needed(n-1).W ) )
+    val read_ptr        = RegInit( 0.U( bits.needed(n-1).W ) )
+    val full            = RegInit( false.B )
+    
+    val next_write_ptr  = Wire( UInt( bits.needed(n-1).W ) )
+    val next_read_ptr   = Wire( UInt( bits.needed(n-1).W ) )
+    val is_full_next    = Wire( Bool() )
+    
+    next_write_ptr      := Mux( io.in.fire,     Mux( write_ptr  === (n-1).U, 0.U, write_ptr+1.U ),  write_ptr )
+    next_read_ptr       := Mux( io.out.fire,    Mux( read_ptr   === (n-1).U, 0.U, read_ptr+1.U ),   read_ptr )
+    
+    // The two cases are "write catches up to read" and "write and read advance, and was previously full"
+    is_full_next        := ( ( write_ptr =/= next_write_ptr ) || full ) && ( next_read_ptr === next_write_ptr )
+    
+    io.out.valid        := ( write_ptr =/= read_ptr ) || full
+    io.in.ready         := !full
+    
+    write_ptr           := next_write_ptr
+    read_ptr            := next_read_ptr
+    full                := is_full_next
+    
+    when( io.in.fire )
+    {
+        storage( write_ptr )    := io.in.bits
+    }
+    
+    io.out.bits := storage( read_ptr )
+}
+
