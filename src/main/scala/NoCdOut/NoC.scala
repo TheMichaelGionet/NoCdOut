@@ -78,74 +78,159 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     // deprioritize p2p as much as possible
     val p2p = p4p && !n2p && !e2p && !w2p && !s2p
 
+    val out_s_wires = Wire(new Ship(params))
+    out_s_wires := DontCare
+    // val out_s_val_shreg = RegInit(0.U(1.W)) //include a shadow register for ready on output to deal with bp
     // write outputs
     when (!io.packets_out.out_s.ready.asBool) {//to south
-        //do nothing
+        io.packets_out.out_s.valid := DontCare 
     }.elsewhen (n2s) { 
-        io.packets_out.out_s.bits := io.packets_in.in_n.bits
+        out_s_wires := io.packets_in.in_n.bits
         io.packets_out.out_s.valid := 1.U
+        // out_s_val_shreg := 1.U
     }.elsewhen (w2s) {
-        io.packets_out.out_s.bits := io.packets_in.in_w.bits
+        out_s_wires := io.packets_in.in_w.bits
         io.packets_out.out_s.valid := 1.U
+        // out_s_val_shreg := 1.U
     }.elsewhen (e2s) {
-        io.packets_out.out_s.bits := io.packets_in.in_e.bits
+        out_s_wires := io.packets_in.in_e.bits
         io.packets_out.out_s.valid := 1.U
+        // out_s_val_shreg := 1.U
     }.elsewhen (p2s) {
-        io.packets_out.out_s.bits := io.planet_in.bits
+        out_s_wires := io.planet_in.bits
         io.packets_out.out_s.valid := 1.U
+        // out_s_val_shreg := 1.U
     }.otherwise {
+        //io.packets_out.out_s.bits := DontCare
         io.packets_out.out_s.valid := 0.U //invalid packet if nothing flows to output
+        // out_s_val_shreg := 0.U
     }
+    io.packets_out.out_s.bits := out_s_wires
 
+
+    val out_n_wires = Wire(new Ship(params))
+    out_n_wires := DontCare
+    // val out_n_val_shreg = RegInit(0.U(1.W))
     when (!io.packets_out.out_n.ready.asBool){// to north
-        //do nothing
+        io.packets_out.out_n.valid := DontCare
     }.elsewhen (s2n) {
-        io.packets_out.out_n.bits := io.packets_in.in_s.bits
+        out_n_wires := io.packets_in.in_s.bits
+        io.packets_out.out_n.valid := 1.U
+        // out_n_val_shreg := 1.U
     }.elsewhen (w2n) {
-        io.packets_out.out_n.bits := io.packets_in.in_w.bits
+        out_n_wires := io.packets_in.in_w.bits
+        io.packets_out.out_n.valid := 1.U
+        // out_n_val_shreg := 1.U
     }.elsewhen (e2n) {
-        io.packets_out.out_n.bits := io.packets_in.in_e.bits
+        out_n_wires := io.packets_in.in_e.bits
+        io.packets_out.out_n.valid := 1.U
+        //out_n_val_shreg := 1.U
     }.elsewhen (p2n) {
-        io.packets_out.out_n.bits := io.planet_in.bits
+        out_n_wires := io.planet_in.bits
+        io.packets_out.out_n.valid := 1.U
+        //out_n_val_shreg := 1.U
     }.otherwise{
+        //io.packets_out.out_n.bits := DontCare
         io.packets_out.out_n.valid := 0.U
+        //out_n_val_shreg := 0.U
     }
+    io.packets_out.out_n.bits := out_n_wires
 
+    val out_e_wires = Wire(new Ship(params))
+    out_e_wires := DontCare
+    //val out_e_val_shreg = RegInit(0.U(1.W))
     when (!io.packets_out.out_e.ready.asBool){//to east
-        //do nothing
+        io.packets_out.out_e.valid := DontCare
     }.elsewhen(w2e){
-        io.packets_out.out_e.bits := io.packets_in.in_w.bits
+        out_e_wires := io.packets_in.in_w.bits
+        io.packets_out.out_e.valid := 1.U
+        //out_e_val_shreg := 1.U
     }.elsewhen(p2e){
-        io.packets_out.out_e.bits := io.planet_in.bits
+        out_e_wires := io.planet_in.bits
+        io.packets_out.out_e.valid := 1.U
+        //out_e_val_shreg := 1.U
     }.otherwise{
         io.packets_out.out_e.valid := 0.U
+        //out_e_val_shreg := 0.U
     }
+    io.packets_out.out_e.bits := out_e_wires
 
+    val out_w_wires = Wire(new Ship(params))
+    out_w_wires := DontCare
+    // val out_w_val_shreg = RegInit(0.U(1.W))
     when (!io.packets_out.out_w.ready.asBool){//to west
-        //do nothing
+        io.packets_out.out_w.valid := DontCare
     }.elsewhen(e2w){
-        io.packets_out.out_w.bits := io.packets_in.in_e.bits
+        out_w_wires := io.packets_in.in_e.bits
+        io.packets_out.out_w.valid := 1.U
+        // out_w_val_shreg := 1.U
     }.elsewhen(p2w){
-        io.packets_out.out_w.bits := io.planet_in.bits
+        out_w_wires := io.planet_in.bits
+        io.packets_out.out_w.valid := 1.U
+        // out_w_val_shreg := 1.U
     }.otherwise{
+        io.packets_out.out_w.bits := DontCare
         io.packets_out.out_w.valid := 0.U
+        // out_w_val_shreg := 1.U
     }
+    io.packets_out.out_w.bits := out_w_wires
 
-    when(n2p){//to planet, planet accepts ship every cycle so no bp
-        io.packets_out.out_p.bits := io.packets_in.in_n.bits
+    val out_p_wires = Wire(new Ship(params))
+    out_p_wires := DontCare
+    when(!io.packets_out.out_p.ready){
+        io.packets_out.out_p.valid := DontCare
+    }.elsewhen(n2p){//to planet, planet accepts ship every cycle so no bp
+        out_p_wires := io.packets_in.in_n.bits
+        io.packets_out.out_p.valid := 1.U
     }.elsewhen(s2p){
-        io.packets_out.out_p.bits := io.packets_in.in_s.bits
+        out_p_wires := io.packets_in.in_s.bits
+        io.packets_out.out_p.valid := 1.U
     }.elsewhen(w2p){
-        io.packets_out.out_p.bits := io.packets_in.in_w.bits
+        out_p_wires := io.packets_in.in_w.bits
+        io.packets_out.out_p.valid := 1.U
     }.elsewhen(e2p){
-        io.packets_out.out_p.bits := io.packets_in.in_e.bits
+        out_p_wires := io.packets_in.in_e.bits
+        io.packets_out.out_p.valid := 1.U
     }.elsewhen(p2p){
-        io.packets_out.out_p.bits := io.planet_in.bits
+        out_p_wires := io.planet_in.bits
+        io.packets_out.out_p.valid := 1.U
     }.otherwise{
+        // io.packets_out.out_p.bits := io.planet_in.bits
         io.packets_out.out_p.valid := 0.U
     }
+    io.packets_out.out_p.bits := out_p_wires
 
-    //update BPs in another module so they are applied last, overwriting everything else (?)
+    //backpressure propagation
+    when((n4s && !n2s) || (n4p && !n2s)){//north
+        io.packets_in.in_n.ready := 0.U
+   }.otherwise{
+        io.packets_in.in_n.ready := 1.U
+   }
+
+   when((s4n && !s2n) || (s4p && !s2p)){//south
+        io.packets_in.in_s.ready := 0.U
+   }.otherwise{
+        io.packets_in.in_s.ready := 1.U
+   }
+
+   when((w4e && !w2e) || (w4n && !w2n) || (w4s && !w2s) || (w4p && !w2p)){//west
+        io.packets_in.in_w.ready := 0.U
+   }.otherwise{
+        io.packets_in.in_w.ready := 1.U
+   }
+
+   when((e4w && !e2w) || (e4n && !e2n) || (e4s && !e2s) || (e4p && !e2p)){//east
+        io.packets_in.in_e.ready := 0.U
+   }.otherwise{
+        io.packets_in.in_e.ready := 1.U
+   }
+
+   when((p4e && !p2e) || (p4w && !p2w) || (p4n && !p2n) || (p4s && !p2s) || (p4p && !p2p)){//planet but also this one is tricky, as all routers see the same(?) planet_in data
+        io.planet_in.ready := 0.U//this case is obvious that it is the driver
+   }.otherwise{
+        io.planet_in.ready := 1.U
+   }
+
 }
 
 
@@ -154,7 +239,7 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     val io = IO(new Bundle{
         val in = new InPerSide(params) // one physical channel!
         val out = new OutPerSide(params)
-        val in_p = new Ship(params) // planet i/o
+        val in_p = Flipped(Decoupled(new Ship(params))) // planet i/o
     })
 
     //val vcs_in = Seq.fill(params.num_players)(Wire(new InPerSide(params)))
@@ -173,56 +258,19 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
         when(vc_in_reg(i).in_s.ready && (io.in.in_s.bits.general_id.side === i.U)){
             vc_in_reg(i).in_s <> io.in.in_s
         }
-        // when(!vc_in_reg(i).in_p.backpressured && (io.in.in_p.general_id.side === i.U)){
-        //     vc_in_reg(i).in_p := io.in.in_p
-        // }
-        //vc_in_reg(i).elements.map{case (name, data) => vc_in_reg(i).elements(name).valid := (io.in.elements(name).general_id.side === i)}
     }
 
-    val vc_out_reg = Reg(Vec(params.num_players, new OutPerSide(params)))  //output VCs   
+    val vc_out_reg = Reg(Vec(params.num_players, new OutPerSide(params)))  //output VCs 
+    val planet_in_ready_fanout = Wire(Vec(params.num_players, UInt(1.W)))  //fanout for planet ready signals
 
-    // for ((fieldName, ship) <- io.in.elements){
-    //     val targetVC = ship.general_id.side
-    //     when(ship.valid && !(vc_in_reg(targetVC)(fieldName).backpressured)){//when we can update VC
-    //         vc_in_reg(targetVC).elements(fieldName) := ship
-    //     }
-    // }
-
-    //shoddy DOR for now
     val vc_routers = Seq[Router]()
     for (i <- 0 until params.num_players){
         vc_routers :+ Module(new Router(params, x.U, y.U))//route per vc. as bp is only valid within vc, otherwise they fight!
         vc_routers(i).io.packets_in <> vc_in_reg(i)
-        vc_routers(i).io.planet_in <> io.in_p // note PE is not registered in/out!
-        vc_routers(i).io.planet_in.valid <> (io.in_p.general_id.side === i.U)
+        vc_routers(i).io.planet_in.bits := io.in_p.bits // note PE is not registered in/out!
+        vc_routers(i).io.planet_in.valid := ((io.in_p.bits.general_id.side === i.U) && io.in_p.valid)
+        vc_routers(i).io.planet_in.ready := planet_in_ready_fanout(i)
         vc_routers(i).io.packets_out <> vc_out_reg(i)
     }
-    // val Fn4s = (x != friendly.in_n.dst.x)//go straight
-    // val Fw4e = (y != friendly.in_w.dst.y)
-    // val Fw4s = ((y === friendly.in_w.dst.y) && (x != friendly.in_w.dst.x))//turn
-    // val Fn4p = (x === friendly.in_n.dst.x)//exit noc
-    // val Fw4p = ((x === friendly.in_w.dst.x) && (y === friendly.in_w.dst.y))
-    // val Fp4e = (y != friendly.in_p.dst.y)// planet 2 noc
-    // val Fp4s = ((y === friendly.in_p.dst.y) && (x != friendly.in_p.dst.x))
-    // val Fp4p = ((y === friendly.in_p.dst.y) && (x === friendly.in_p.dst.x))// I guess this corner case could exist with random destinations
-
-    // //enemy routing
-    // val En4s = (x != enemy.in_n.dst.x)//go straight
-    // val Ew4e = (y != enemy.in_w.dst.y)
-    // val Ew4s = ((y === enemy.in_w.dst.y) && (x != enemy.in_w.dst.x))//turn
-    // val En4p = (x === enemy.in_n.dst.x)//exit noc
-    // val Ew4p = ((x === enemy.in_w.dst.x) && (y === enemy.in_w.dst.y))
-    // val Ep4e = (y != enemy.in_p.dst.y)// planet 2 noc
-    // val Ep4s = ((y === enemy.in_p.dst.y) && (x != enemy.in_p.dst.x))
-    // val Ep4p = ((y === enemy.in_p.dst.y) && (x === enemy.in_p.dst.x))// I guess this corner case could exist with random destinations
-
-    // //COMBAT
-    // friendly_str = (Mux(friendly.in_n.valid, friendly.in_n.fleet_hp, 0.U) + Mux(friendly.in_w.valid, friendly.in_w.fleet_hp, 0.U) + Mux(friendly.in_p.valid, friendly.in_p.fleet_hp, 0.U))
-    // enemy_str = (Mux(enemy.in_n.valid, enemy.in_n.fleet_hp, 0.U) + Mux(enemy.in_w.valid, enemy.in_w.fleet_hp, 0.U) + Mux(enemy.in_p.valid, enemy.in_p.fleet_hp, 0.U))
-    
-    // if((friendly_str != 0) && (enemy_str != 0)){//then we have a fight
-    //     if(friendly_str > enemy_str){
-
-    //     }
-    // }
+    io.in_p.ready := planet_in_ready_fanout.toSeq.reduce(_ & _) //if ANY readys are set to 0, then planet is not ready (a packet is held in the buffer)
 }
