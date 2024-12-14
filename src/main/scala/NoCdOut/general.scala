@@ -30,12 +30,12 @@ abstract class GeneralDFA( params : GameParameters, val buffs : GeneralBuffs ) e
         val limit_turret_hp = Input( UInt( params.max_turret_hp_len.W ) )
 
         val under_attack    = Input( Bool() )
+        val ship_was_built  = Input( Bool() )
 
         val do_build_ship   = Output( Bool() )
         val which_ship      = Output( UInt( params.num_ship_classes_len.W ) )
         val how_many_ships  = Output( UInt( params.max_fleet_hp_len.W ) )
         
-        val command_ship    = Output( Bool() )
         val command_where   = Output( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
         
         val add_turret_hp   = Output( Bool() )
@@ -88,7 +88,7 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
 
     io.how_many_ships   := Mux( startup, 1.U, 5.U )
 
-    io.command_ship     := io.ship_valid && ( io.ship_it_sees.general_id.general_owned === general_id.U )
+    //io.command_ship     := io.ship_valid && ( io.ship_it_sees.general_id.general_owned === general_id.U )
     io.command_where.x  := x_loc // send ships randomly
     io.command_where.y  := y_loc
 }

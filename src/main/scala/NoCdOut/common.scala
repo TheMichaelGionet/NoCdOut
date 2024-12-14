@@ -77,6 +77,7 @@ class ScoutData( x_len : Int, y_len : Int, num_players_len : Int ) extends Bundl
 {
     val data_valid  = Bool()
     val loc         = new Coordinates( x_len, y_len )
+    val owned       = Bool()
     val side        = UInt( num_players_len.W )
 }
 
