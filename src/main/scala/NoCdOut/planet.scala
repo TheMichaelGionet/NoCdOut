@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.util.Decoupled
 
 import common._
-
+import ships._
 
 
 abstract class Sector( params : GameParameters, buffer_depth : Int ) extends Module
@@ -118,6 +118,65 @@ class ShipEventHandler( params : GameParameters, x_pos : Int, y_pos : Int ) exte
         
         io.ship_out.scout_data  := no_data
     }
+}
+
+class CombatHandler( params : GameParameters ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val ship            = Input( new Ship( params ) )
+        
+        val do_damage       = Input( Bool() )
+        
+        val current_hp      = Input( UInt( params.max_turret_hp_len.W ) )
+        val max_hp          = Input( UInt( params.max_turret_hp_len.W ) )
+        
+        val hp_inc          = Input( UInt( params.max_turret_hp_len.W ) )
+        
+        val new_hp          = Output( UInt( params.max_turret_hp_len.W ) )
+        
+        val planet_takeover = Output( Bool() )
+        
+        val new_side        = Output( UInt( params.num_players_len.W ) )
+    } )
+    
+    val ship_lut            = Module( new ShipLut( params ) )
+    
+    ship_lut.io.ship_type   := io.ship.ship_class
+
+    val log_attack_per_hp   = ship_lut.io.ship_stats.log_attack_per_hp
+    
+    val damage_from_ship    = Mux( log_attack_per_hp >= 0.S, io.ship.fleet_hp << log_attack_per_hp.asUInt, io.ship.fleet_hp >> (-log_attack_per_hp).asUInt )
+    
+    val damage              = Wire( SInt( (params.max_turret_hp_len+1).W ) )
+    damage                  := Mux( io.do_damage, damage_from_ship.asSInt, 0.S )
+    
+    
+    val current_hp          = Wire( SInt( (params.max_turret_hp_len+1).W ) )
+    current_hp              := io.current_hp.asSInt
+    
+    
+    val hp_inc              = Wire( SInt( (params.max_turret_hp_len+1).W ) )
+    hp_inc                  := io.hp_inc.asSInt
+    
+    
+    val unrectified_hp      = Wire( SInt( (params.max_turret_hp_len+2).W ) )
+    unrectified_hp          := current_hp + hp_inc - damage
+    
+    
+    val max_hp              = Wire( SInt( (params.max_turret_hp_len+1).W ) )
+    max_hp                  := io.max_hp.asSInt
+    
+    
+    val final_hp            = Wire( UInt( params.max_turret_hp_len.W ) )
+    final_hp                := Mux( unrectified_hp > max_hp, io.max_hp, Mux( unrectified_hp < 0.S, 0.U, unrectified_hp.asUInt ) )
+    
+    
+    io.new_hp               := final_hp
+    
+    io.planet_takeover      := ( unrectified_hp <= 0.S ) && io.do_damage
+    
+    io.new_side             := io.ship.general_id.side
 }
 
 /*

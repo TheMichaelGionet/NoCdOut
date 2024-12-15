@@ -185,4 +185,96 @@ class planet_test extends AnyFreeSpec with Matchers {
             
         }
     }
+
+    "combat handler" in {
+        
+        val input_params    = new GameParametersInput
+        {
+            // Use defaults
+        }
+
+        val params  = new GameParameters( input_params )
+
+        
+        simulate( new CombatHandler( params ) ) 
+        {
+            dut =>
+
+            /*
+            val ship            = Input( new Ship( params ) )
+            
+            val do_damage       = Input( Bool() )
+            
+            val current_hp      = Input( UInt( params.max_turret_hp_len.W ) )
+            val max_hp          = Input( UInt( params.max_turret_hp_len.W ) )
+            
+            val hp_inc          = Input( UInt( params.max_turret_hp_len.W ) )
+            
+            val new_hp          = Output( UInt( params.max_turret_hp_len.W ) )
+            
+            val planet_takeover = Output( Bool() )
+            
+            val new_side        = Output( UInt( num_players_len.W ) )
+            */
+
+            dut.io.ship.src.x.poke( 3.U )
+            dut.io.ship.src.y.poke( 4.U )
+            dut.io.ship.dst.x.poke( 1.U )
+            dut.io.ship.dst.y.poke( 2.U )
+            dut.io.ship.general_id.side.poke( 0.U )
+            dut.io.ship.general_id.general_owned.poke( 0.U )
+            dut.io.ship.ship_class.poke( 0.U )
+            dut.io.ship.fleet_hp.poke( 0.U )
+            dut.io.ship.scout_data.data_valid.poke( false.B )
+            dut.io.ship.scout_data.loc.x.poke( 0.U )
+            dut.io.ship.scout_data.loc.y.poke( 0.U )
+            dut.io.ship.scout_data.side.poke( 0.U )
+
+            dut.io.do_damage.poke( false.B )
+            dut.io.current_hp.poke( 0.U )
+            dut.io.max_hp.poke( 0.U )
+            dut.io.hp_inc.poke( 0.U )
+
+            dut.reset.poke(true.B)
+            dut.clock.step()
+            dut.reset.poke(false.B)
+            
+            // If nothing happens, nothing happens.
+            dut.io.new_hp.expect( 0.U )
+            dut.io.planet_takeover.expect(false.B)
+            
+            // New hp should just be the sum of the old hp + replenishment
+            dut.io.current_hp.poke( 10.U )
+            dut.io.hp_inc.poke( 5.U )
+            dut.io.max_hp.poke( 20.U )
+            dut.io.new_hp.expect( 15.U )
+            dut.io.planet_takeover.expect(false.B)
+
+            // If rectified from above:
+            dut.io.max_hp.poke( 12.U )
+            dut.io.new_hp.expect( 12.U )
+            dut.io.planet_takeover.expect(false.B)
+            
+            // Doing damage does damage
+            dut.io.hp_inc.poke( 0.U )
+            dut.io.do_damage.poke( true.B )
+            dut.io.ship.fleet_hp.poke( 7.U )
+            dut.io.ship.ship_class.poke( 1.U ) // basic ship
+            
+            dut.io.new_hp.expect( 7.U ) // 10 - ( 7>>1 )
+            dut.io.planet_takeover.expect(false.B)
+            
+            // Wiping out the hp makes the planet take over.
+            dut.io.ship.fleet_hp.poke( 15.U )
+            dut.io.current_hp.poke( 5.U )
+            dut.io.new_hp.expect( 0.U ) // rectified from below
+            dut.io.planet_takeover.expect(true.B)
+
+            // This can be stopped however if it regains enough HP to not die
+
+            dut.io.hp_inc.poke( 5.U )
+            dut.io.new_hp.expect( 3.U ) // 5 + 5 - ( 15>>1 ) = 10 - 7 = 3
+            dut.io.planet_takeover.expect(false.B)
+        }
+    }
 }
