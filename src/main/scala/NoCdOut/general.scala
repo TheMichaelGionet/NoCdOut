@@ -7,6 +7,7 @@ import chisel3.util.Decoupled
 import common._
 import lfsr._
 
+// The buffs may or may not get implemented depending on time.
 abstract class GeneralBuffs( params : GameParameters )
 {
     def resource_prod_buff  : Double
@@ -20,25 +21,26 @@ abstract class GeneralDFA( params : GameParameters, val buffs : GeneralBuffs ) e
 {
     val io = IO( new Bundle
     {
-        val ship_it_sees    = Input( new Ship( params ) )
-        val ship_valid      = Input( Bool() )
+        val ship_it_sees        = Input( new Ship( params ) )
+        val ship_valid          = Input( Bool() )
         
-        val resources       = Input( UInt( params.max_resource_val_len.W ) )
-        val limit_resources = Input( UInt( params.max_resource_val_len.W ) )
+        val resources           = Input( UInt( params.max_resource_val_len.W ) )
+        val limit_resources     = Input( UInt( params.max_resource_val_len.W ) )
 
-        val turret_hp       = Input( UInt( params.max_turret_hp_len.W ) )
-        val limit_turret_hp = Input( UInt( params.max_turret_hp_len.W ) )
+        val turret_hp           = Input( UInt( params.max_turret_hp_len.W ) )
+        val limit_turret_hp     = Input( UInt( params.max_turret_hp_len.W ) )
 
-        val under_attack    = Input( Bool() )
-        val ship_was_built  = Input( Bool() )
+        val under_attack        = Input( Bool() )
+        val ship_was_built      = Input( Bool() )
 
-        val do_build_ship   = Output( Bool() )
-        val which_ship      = Output( UInt( params.num_ship_classes_len.W ) )
-        val how_many_ships  = Output( UInt( params.max_fleet_hp_len.W ) )
+        val do_build_ship       = Output( Bool() )
+        val which_ship          = Output( UInt( params.num_ship_classes_len.W ) )
+        val how_many_ships      = Output( UInt( params.max_fleet_hp_len.W ) )
         
-        val command_where   = Output( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
+        val command_where       = Output( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
         
-        val add_turret_hp   = Output( Bool() )
+        val add_turret_hp       = Output( Bool() )
+        val how_much_turret_hp  = Output( UInt( params.max_turret_hp_len.W ) )
     } )
 }
 
@@ -70,7 +72,8 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
     val add_turret_early    = ( ( counter & 0x7.U ) === 0.U )
     val add_turret_later    = io.under_attack
 
-    io.add_turret_hp    := Mux( startup, add_turret_early, add_turret_later )
+    io.add_turret_hp        := Mux( startup, add_turret_early, add_turret_later )
+    io.how_much_turret_hp   := 10.U
     
     val do_build_ship_early = ( ( counter & 0x7.U ) === 3.U )
     val do_build_ship_later = io.resources > ( io.limit_resources >> 1 )
