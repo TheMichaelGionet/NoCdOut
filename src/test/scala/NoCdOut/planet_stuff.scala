@@ -258,10 +258,10 @@ class planet_test extends AnyFreeSpec with Matchers {
             // Doing damage does damage
             dut.io.hp_inc.poke( 0.U )
             dut.io.do_damage.poke( true.B )
-            dut.io.ship.fleet_hp.poke( 7.U )
+            dut.io.ship.fleet_hp.poke( 1.U )
             dut.io.ship.ship_class.poke( 1.U ) // basic ship
             
-            dut.io.new_hp.expect( 7.U ) // 10 - ( 7>>1 )
+            dut.io.new_hp.expect( 8.U ) // 10 - (1<<2) = 8
             dut.io.planet_takeover.expect(false.B)
             
             // Wiping out the hp makes the planet take over.
@@ -272,9 +272,212 @@ class planet_test extends AnyFreeSpec with Matchers {
 
             // This can be stopped however if it regains enough HP to not die
 
-            dut.io.hp_inc.poke( 5.U )
-            dut.io.new_hp.expect( 3.U ) // 5 + 5 - ( 15>>1 ) = 10 - 7 = 3
+            dut.io.hp_inc.poke( 30.U )
+            dut.io.new_hp.expect( 5.U ) // 5 + 5 - ( 15<<1 ) = 10 - 7 = 3
             dut.io.planet_takeover.expect(false.B)
+        }
+    }
+
+    "econ handler" in {
+        
+        val input_params    = new GameParametersInput
+        {
+            // Use defaults
+        }
+
+        val params  = new GameParameters( input_params )
+
+        
+        simulate( new EconomyHandler( params ) ) 
+        {
+            dut =>
+            
+            /*
+                val do_build_ship       = Input( Bool() )
+                val which_ship          = Input( UInt( params.num_ship_classes_len.W ) )
+                val how_many_ships      = Input( UInt( params.max_fleet_hp_len.W ) )
+                val add_turret_hp       = Input( Bool() )
+                
+                val turret_hp_amount    = Input( UInt( params.max_turret_hp_len.W ) )
+                
+                val general_id          = Input( GeneralID( params ) )
+                
+                val resources           = Input( UInt( params.max_resource_val_len.W ) )
+                val max_resources       = Input( UInt( params.max_resource_val_len.W ) )
+                val add_resources       = Input( UInt( params.max_resource_val_len.W ) )
+                
+                val ship                = Output( new Ship( params ) )
+                val ship_valid          = Output( Bool() )
+                
+                val inc_turret_hp_out   = Output( UInt( params.max_turret_hp_len.W ) )
+                
+                val resources_after_purchases   = Output( UInt( params.max_resource_val_len.W ) )
+            */
+
+            dut.io.do_build_ship.poke( false.B )
+            dut.io.which_ship.poke( 0.U )
+            dut.io.how_many_ships.poke( 0.U )
+            dut.io.add_turret_hp.poke( false.B )
+            dut.io.turret_hp_amount.poke( 0.U )
+            dut.io.general_id.side.poke( 1.U )
+            dut.io.general_id.general_owned.poke( 3.U )
+            dut.io.resources.poke( 0.U )
+            dut.io.max_resources.poke( 1.U )
+            dut.io.add_resources.poke( 0.U )
+
+            dut.reset.poke( true.B )
+            dut.clock.step()
+            dut.reset.poke( false.B )
+
+            // Doing nothing does nothing
+            dut.io.ship_valid.expect( false.B )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.resources_after_purchases.expect( 0.U )
+            
+            // No purchase is just "add resources"
+            
+            dut.io.resources.poke( 12.U )
+            dut.io.max_resources.poke( 20.U )
+            dut.io.add_resources.poke( 5.U )
+            
+            dut.io.resources_after_purchases.expect( 17.U )
+
+            dut.io.max_resources.poke( 15.U )
+            dut.io.resources_after_purchases.expect( 15.U )
+
+            // Purchasing a ship succeeds if resources are available, and fails if not.
+
+            dut.io.resources.poke( 30.U )
+            dut.io.max_resources.poke( 40.U )
+            dut.io.add_resources.poke( 0.U )
+
+            dut.io.do_build_ship.poke( true.B )
+            dut.io.which_ship.poke( 1.U ) // purchase basic
+            dut.io.how_many_ships.poke( 5.U )
+
+            dut.io.ship_valid.expect( true.B )
+            dut.io.resources_after_purchases.expect( 25.U )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.ship.ship_class.expect( 1.U )
+            dut.io.ship.fleet_hp.expect( 5.U )
+            dut.io.ship.general_id.side.expect( 1.U )
+            dut.io.ship.general_id.general_owned.expect( 3.U )
+
+            // trying to buy too little amount of ships rectifies it to the min amount
+
+            dut.io.how_many_ships.poke( 4.U )
+
+            dut.io.ship_valid.expect( true.B )
+            dut.io.resources_after_purchases.expect( 25.U )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.ship.ship_class.expect( 1.U )
+            dut.io.ship.fleet_hp.expect( 5.U )
+            dut.io.ship.general_id.side.expect( 1.U )
+            dut.io.ship.general_id.general_owned.expect( 3.U )
+
+            // trying to buy too many ships rectifies it to the max amount
+
+            dut.io.how_many_ships.poke( 26.U )
+
+            dut.io.ship_valid.expect( true.B )
+            dut.io.resources_after_purchases.expect( 5.U )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.ship.ship_class.expect( 1.U )
+            dut.io.ship.fleet_hp.expect( 25.U )
+            dut.io.ship.general_id.side.expect( 1.U )
+            dut.io.ship.general_id.general_owned.expect( 3.U )
+
+            // buying a ship and incrementing resources takes that increment into account in the total
+
+            dut.io.add_resources.poke( 5.U )
+            dut.io.resources_after_purchases.expect( 10.U )
+
+            // trying to buy a ship with insufficient funds does not work.
+
+            dut.io.add_resources.poke( 0.U )
+            dut.io.resources.poke( 20.U )
+
+            dut.io.ship_valid.expect( false.B )
+            dut.io.resources_after_purchases.expect( 20.U )
+
+            // Now we just want to buy some turret hp only
+            
+            dut.io.do_build_ship.poke( false.B )
+            dut.io.resources.poke( 30.U )
+            dut.io.ship_valid.expect( false.B )
+            dut.io.resources_after_purchases.expect( 30.U )
+
+            dut.io.add_turret_hp.poke( true.B )
+            dut.io.turret_hp_amount.poke( 5.U )
+
+            dut.io.inc_turret_hp_out.expect( 5.U )
+            dut.io.resources_after_purchases.expect( 25.U )
+            
+            // test that rectification does work
+            
+            dut.io.turret_hp_amount.poke( 4.U )
+
+            dut.io.inc_turret_hp_out.expect( 5.U )
+            dut.io.resources_after_purchases.expect( 25.U )
+
+            dut.io.turret_hp_amount.poke( 16.U )
+
+            dut.io.inc_turret_hp_out.expect( 15.U )
+            dut.io.resources_after_purchases.expect( 15.U )
+
+            // Cannot purchase with insufficient funds
+
+            dut.io.resources.poke( 10.U )
+
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.resources_after_purchases.expect( 10.U )
+
+            // Now we want to purchase both a ship and some turret hp
+
+            dut.io.resources.poke( 50.U )
+            dut.io.max_resources.poke( 60.U )
+            
+            dut.io.do_build_ship.poke( true.B )
+            dut.io.which_ship.poke( 2.U ) // purchase attack
+            dut.io.how_many_ships.poke( 5.U ) // = 20$
+            
+            dut.io.turret_hp_amount.poke( 10.U )
+            
+            dut.io.ship_valid.expect( true.B )
+            dut.io.inc_turret_hp_out.expect( 10.U )
+            dut.io.ship.ship_class.expect( 2.U )
+            dut.io.ship.fleet_hp.expect( 5.U )
+
+            dut.io.resources_after_purchases.expect( 20.U )
+
+            // If there is enough resources for a ship but not for the turret, then the ship succeeds but the turret fails.
+
+            dut.io.resources.poke( 25.U )
+            
+            dut.io.ship_valid.expect( true.B )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+            dut.io.ship.ship_class.expect( 2.U )
+            dut.io.ship.fleet_hp.expect( 5.U )
+
+            dut.io.resources_after_purchases.expect( 5.U )
+
+            // If there is not enough resources for either, then both fail
+
+            dut.io.resources.poke( 15.U )
+            
+            dut.io.ship_valid.expect( false.B )
+            dut.io.inc_turret_hp_out.expect( 10.U )
+
+            dut.io.resources_after_purchases.expect( 5.U )
+
+            
+
+            dut.io.resources.poke( 5.U )
+            
+            dut.io.ship_valid.expect( false.B )
+            dut.io.inc_turret_hp_out.expect( 0.U )
+
+            dut.io.resources_after_purchases.expect( 5.U )
         }
     }
 }

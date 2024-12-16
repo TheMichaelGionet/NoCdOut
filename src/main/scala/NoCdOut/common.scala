@@ -29,8 +29,8 @@ class GameParametersInput
     var noc_x_size          = 0x40;
     var noc_y_size          = 0x40;
     var num_ship_classes    = 0x5;
-    var max_fleet_hp        = 0xff;
-    var max_turret_hp       = 0xff;
+    var max_fleet_hp        = 0xfff;
+    var max_turret_hp       = 0xfff;
     var max_resource_val    = 0xffff;
 }
 
@@ -65,6 +65,14 @@ class GeneralID( num_players_len : Int, general_len : Int ) extends Bundle
 {
     val side            = UInt( num_players_len.W )
     val general_owned   = UInt( general_len.W )
+}
+
+object GeneralID
+{
+    def apply( params : GameParameters ) : GeneralID = 
+    {
+        return new GeneralID( params.num_players_len, params.num_generals_len )
+    }
 }
 
 class Coordinates( x_len : Int, y_len : Int ) extends Bundle

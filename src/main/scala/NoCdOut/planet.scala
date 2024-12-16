@@ -179,6 +179,92 @@ class CombatHandler( params : GameParameters ) extends Module
     io.new_side             := io.ship.general_id.side
 }
 
+
+class EconomyHandler( params : GameParameters ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val do_build_ship       = Input( Bool() )
+        val which_ship          = Input( UInt( params.num_ship_classes_len.W ) )
+        val how_many_ships      = Input( UInt( params.max_fleet_hp_len.W ) )
+        
+        val add_turret_hp       = Input( Bool() )
+        
+        val turret_hp_amount    = Input( UInt( params.max_turret_hp_len.W ) )
+        
+        val general_id          = Input( GeneralID( params ) )
+        
+        val resources           = Input( UInt( params.max_resource_val_len.W ) )
+        val max_resources       = Input( UInt( params.max_resource_val_len.W ) )
+        val add_resources       = Input( UInt( params.max_resource_val_len.W ) )
+        
+        val ship                = Output( new Ship( params ) )
+        val ship_valid          = Output( Bool() )
+        
+        val inc_turret_hp_out   = Output( UInt( params.max_turret_hp_len.W ) )
+        
+        val resources_after_purchases   = Output( UInt( params.max_resource_val_len.W ) )
+    } )
+    
+    // Rectify how many ships to buy
+    
+    val ship_lut    = Module( new ShipLut( params ) )
+    
+    ship_lut.io.ship_type       := io.which_ship
+    
+    val rectified_ship_amounts  = Mux( io.how_many_ships < ship_lut.io.ship_stats.min_hp_buy, ship_lut.io.ship_stats.min_hp_buy, Mux( io.how_many_ships > ship_lut.io.ship_stats.max_hp_buy, ship_lut.io.ship_stats.max_hp_buy, io.how_many_ships ) )
+    val ship_price              = rectified_ship_amounts *ship_lut.io.ship_stats.cost_per_hp
+    
+    // Rectify the amount of turret hp to add
+    
+    val turret_min          = 5.U
+    val turret_max          = 15.U
+    val turret_cost_per_hp  = 1.U
+    
+    val rectified_turret_amounts    = Mux( io.turret_hp_amount < turret_min, turret_min, Mux( io.turret_hp_amount > turret_max, turret_max, io.turret_hp_amount ) )
+    val turret_price                = rectified_turret_amounts * turret_cost_per_hp
+    
+    // Decide if purchasing a ship is possible given the amount of funds
+    
+    val can_purchase_ship           = ship_price <= io.resources
+    val will_purchase_ship          = can_purchase_ship && io.do_build_ship
+    
+    // Decide if purchasing the turret hp given the ship purchase (if one exists) is possible given the amount of funds and whether or not it would overflow. .
+    
+    val can_purchase_turret_hp      = ( ( turret_price + Mux( will_purchase_ship, ship_price, 0.U ) ) <= io.resources ) && ( ( rectified_turret_amounts + io.turret_hp_amount ) <= params.max_turret_hp.U )
+    val will_purchase_turret_hp     = can_purchase_turret_hp && io.add_turret_hp
+    
+    // Set Ship stuff
+    
+    io.ship_valid                       := will_purchase_ship
+    
+    io.ship.src.x                       := 0.U
+    io.ship.src.y                       := 0.U
+    io.ship.dst.x                       := 0.U
+    io.ship.dst.y                       := 0.U
+    io.ship.general_id.side             := io.general_id.side
+    io.ship.general_id.general_owned    := io.general_id.general_owned
+    io.ship.ship_class                  := io.which_ship
+    io.ship.fleet_hp                    := rectified_ship_amounts
+    io.ship.scout_data.data_valid       := false.B
+    io.ship.scout_data.loc.x            := 0.U
+    io.ship.scout_data.loc.y            := 0.U
+    io.ship.scout_data.owned            := false.B
+    io.ship.scout_data.side             := 0.U
+    
+    // Set turret hp stuff
+    
+    io.inc_turret_hp_out                := Mux( will_purchase_turret_hp, rectified_turret_amounts, 0.U )
+    
+    // Set resources
+    
+    val resource_delta                  = io.add_resources - Mux( will_purchase_ship, ship_price, 0.U ) - Mux( will_purchase_turret_hp, turret_price, 0.U )
+    
+    val new_resource                    = io.resources + resource_delta
+    
+    io.resources_after_purchases        := Mux( new_resource > io.max_resources, io.max_resources, new_resource )
+}
+
 /*
 class Planet(   resource_production_rate    : Int, 
                 max_resources               : Int, 
