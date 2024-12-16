@@ -6,6 +6,7 @@ import chisel3.experimental.BundleLiterals._
 import chisel3.util._
 
 import common._
+import ships._
 
 class InPerSide(params: GameParameters) extends Bundle {
     val in_n = Flipped(Decoupled(new Ship(params)))//full bidirectionality!
@@ -231,7 +232,7 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
    when((p4e && !p2e) || (p4w && !p2w) || (p4n && !p2n) || (p4s && !p2s) || (p4p && !p2p)){//planet but also this one is tricky, as all routers see the same(?) planet_in data
         io.planet_in.ready := 0.U//this case is obvious that it is the driver
    }.otherwise{
-        io.planet_in.ready := 1.U
+        io.planet_in.ready := 1.U// reduce this back down to the plannet itself afterwards
    }
 
 }
@@ -241,6 +242,23 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
 //     val next_val = UInt(params.max_fleet_hp_len.W)
 // }
 
+class ShipStrLUT(params: GameParameters) extends Module{
+    val io = IO(new Bundle {
+        val index = Input(UInt(params.num_ship_classes_len.W))
+        val out = Output(UInt(4.W))
+    })
+    val lut = VecInit(Seq(
+        0.U,
+        1.U,
+        2.U,
+        0.U,
+        1.U,
+        2.U,
+        3.U
+    ))
+    io.out := lut(io.index)
+}
+
 class FightPerSide(params: GameParameters) extends Module {
     val io = IO(new Bundle{
         val ins = Vec(params.num_players, Flipped(Decoupled(new Ship(params))))
@@ -248,7 +266,13 @@ class FightPerSide(params: GameParameters) extends Module {
     })
 
     // commit combat between all sides >:D
-    val strengths = io.ins.map((ship: DecoupledIO[Ship]) => Mux(ship.valid, ship.bits.fleet_hp, 0.U)) // collect valid strengths
+    val ship_luts = Seq.fill(params.num_players)(Module(new ShipStrLUT(params)))
+    // val shiftmap = ship_luts.zipWithIndex.map(case (ship_lut, idx) => )
+    for (i <- 0 until params.num_players){
+        ship_luts(i).io.index := io.ins(i).bits.ship_class
+    }
+
+    val strengths = io.ins.zipWithIndex.map{case (ship: DecoupledIO[Ship], idx : Int) => Mux(ship.valid, ship.bits.fleet_hp << ship_luts(idx).io.out, 0.U)} // collect valid strengths
     val max_strength = strengths.reduce((a,b) => Mux(a > b, a, b)) // find the largest value
     val second_max_strength = strengths.reduce((a,b) => Mux(a === max_strength, Mux(b === max_strength, 0.U, b), Mux(b === max_strength, a, Mux(a > b, a, b))))
 
@@ -260,7 +284,7 @@ class FightPerSide(params: GameParameters) extends Module {
     // val maybe_one_hot = Mux(rand_max.reduce(_ || _), rand_max, who_is_max) //could randomly say nobody wins LOL
     // val max_index = PriorityEncoder(maybe_one_hot) // prio encode remaining ties to a 1H index
 
-    val MAD = (PopCount(who_is_max) =/= 1.U) //if more than 1 max value (or no valid ships), everything blows each other up :)
+    val MAD = ((PopCount(who_is_max) =/= 1.U) || (io.ins(max_index).bits.fleet_hp <= second_max_strength)) //if more than 1 max value (or no valid ships), everything blows each other up :)
 
     // val max_bundle = new DisgustingMaxBundle(params)
     // max_bundle = strengths.foldLeft[DisgustingMaxBundle](new DisgustingMaxBundle(params).Lit(_.max_val -> 0.U(params.max_fleet_hp_len.W), _.next_val -> 0.U(params.max_fleet_hp_len.W))) 
@@ -272,12 +296,105 @@ class FightPerSide(params: GameParameters) extends Module {
         io.out.valid := false.B 
     }.otherwise {
         io.out.bits := io.ins(max_index).bits
-        io.out.bits.fleet_hp := max_strength - second_max_strength // adjusted HP post fight
+        io.out.bits.fleet_hp := io.ins(max_index).bits.fleet_hp - second_max_strength // adjusted HP post fight
         io.out.valid := true.B
     }
     
+    for (i <- 0 until params.num_players){
+        io.ins(i).ready := true.B
+    }
     //the idea is to take the strongest ship and throw everything else against it
     //guaranteed to only have one ship per side here
+}
+
+class FightGlobal(params: GameParameters) extends Module{
+    val io = IO(new Bundle{
+        val in_n = Flipped(Decoupled(new Ship(params)))//yes, I should be using Valids only but the semantics are weird
+        val in_s = Flipped(Decoupled(new Ship(params)))
+        val in_w = Flipped(Decoupled(new Ship(params)))
+        val in_e = Flipped(Decoupled(new Ship(params)))
+        val in_p = Flipped(Decoupled(new Ship(params)))
+
+        val out = new OutPerSide(params)
+    })
+    io.in_n.ready := true.B //combat is ALWAYS ready B)
+    io.in_s.ready := true.B
+    io.in_w.ready := true.B
+    io.in_e.ready := true.B
+    io.in_p.ready := true.B
+
+    val ins = VecInit(Seq(io.in_n, io.in_s, io.in_w, io.in_e, io.in_p)) // construct a seq or a vec or whatever to use the same logic as above
+
+    val ship_luts = Seq.fill(5)(Module(new ShipStrLUT(params)))
+    for (i <- 0 until 5){
+        ship_luts(i).io.index := ins(i).bits.ship_class
+        ins(i).ready := true.B
+    }
+
+    val strengths = ins.zipWithIndex.map{case (ship: DecoupledIO[Ship], idx : Int) => Mux(ship.valid, ship.bits.fleet_hp << ship_luts(idx).io.out, 0.U)} // collect valid strengths
+
+    // val str_per_side = Vec(params.num_players, UInt((params.max_fleet_hp_len << 6).W)) // aggregate strengths per side
+    // val hp_per_side = Vec(params.num_players, UInt((params.max_fleet_hp_len << 3).W))// and strengths too, but maybe not
+    // for (i <- 0 until params.num_players) {
+    //     str_per_side(i) := strengths.zipWithIndex.map{case (str : UInt, idx : Int) => Mux((ins(idx).bits.general_id.side === i.U), str, 0.U)}.reduce(_ + _)
+    //     hp_per_side(i) := ins.map{case (ship : DecoupledIO[Ship]) => Mux(ship.bits.general_id.side === i.U, ship.bits.fleet_hp, 0.U)}.reduce(_ + _)
+    // }
+
+    val str_per_side = VecInit(Seq.tabulate(params.num_players) { i => strengths.zipWithIndex.map { case (str, idx) => Mux(ins(idx).bits.general_id.side === i.U, str, 0.U)}.reduce(_ + _)})
+
+    val hp_per_side = VecInit(Seq.tabulate(params.num_players) { i => ins.map { ship => Mux(ship.bits.general_id.side === i.U, ship.bits.fleet_hp, 0.U)}.reduce(_ + _)})
+
+    val max_strength = str_per_side.reduce((a,b) => Mux(a > b, a, b)) // find the largest value
+    val second_max_strength = str_per_side.reduce((a,b) => Mux(a === max_strength, Mux(b === max_strength, 0.U, b), Mux(b === max_strength, a, Mux(a > b, a, b))))
+
+    val who_is_max = VecInit(str_per_side.map(_ === max_strength)) // there can be ties
+    val max_index = PriorityEncoder(who_is_max) // do this instead of OHtoUInt as we might have ties, idk if this makes an issue, maybe chisel has an internal assertion I didn't check.
+
+    val MAD = ((PopCount(who_is_max) =/= 1.U))// || (ins(max_index).bits.fleet_hp <= second_max_strength)) //if more than 1 max value (or no valid ships), everything blows each other up :)
+
+    var remaining_hp = hp_per_side(max_index)// some disgusting thing to keep track of HP divvying
+    val winning_hps = ins.map{case (ship : DecoupledIO[Ship]) => Mux(ship.bits.general_id.side === max_index, ship.bits.fleet_hp, 0.U)} // incl in list if winning hp
+
+    //prio list: P/N/S/W/E
+    val p_hp = Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4)) > second_max_strength, //did we live?
+        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4) - second_max_strength) > io.in_p.bits.fleet_hp, //if we have more hp left than just us, use just us
+         io.in_p.bits.fleet_hp, winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4)- second_max_strength), 0.U)//otherwise use the new value
+    val n_hp = Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3)) > second_max_strength, 
+        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_n.bits.fleet_hp,
+         io.in_n.bits.fleet_hp, winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+    val s_hp = Mux((winning_hps(1) + winning_hps(2) + winning_hps(3)) > second_max_strength, 
+        Mux((winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_s.bits.fleet_hp,
+         io.in_s.bits.fleet_hp, winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+    val w_hp = Mux((winning_hps(2) + winning_hps(3)) > second_max_strength, 
+        Mux((winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_w.bits.fleet_hp,
+         io.in_w.bits.fleet_hp, winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+    val e_hp = Mux((winning_hps(3)) > second_max_strength, 
+        Mux((winning_hps(3) - second_max_strength) > io.in_e.bits.fleet_hp,
+         io.in_e.bits.fleet_hp, winning_hps(3) - second_max_strength), 0.U)
+
+    io.out := DontCare
+
+    io.out.out_n.bits.fleet_hp := n_hp 
+    io.out.out_s.bits.fleet_hp := s_hp 
+    io.out.out_w.bits.fleet_hp := w_hp 
+    io.out.out_e.bits.fleet_hp := e_hp 
+    io.out.out_p.bits.fleet_hp := p_hp
+
+    io.out.out_n.valid := (n_hp > 0.U)
+    io.out.out_s.valid := (s_hp > 0.U)
+    io.out.out_w.valid := (w_hp > 0.U)
+    io.out.out_e.valid := (e_hp > 0.U)
+    io.out.out_p.valid := (p_hp > 0.U)
+
+    when (MAD) { //if everyone doesn't blow up, enter mux hell
+        //io.out := DontCare
+        io.out.out_n.valid := false.B
+        io.out.out_s.valid := false.B
+        io.out.out_w.valid := false.B
+        io.out.out_e.valid := false.B
+        io.out.out_p.valid := false.B
+    }
+
 }
 
 
