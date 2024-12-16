@@ -2,6 +2,8 @@ package noc
 
 import chisel3._
 import chisel3.util.Decoupled
+import chisel3.experimental.BundleLiterals._
+import chisel3.util._
 
 import common._
 
@@ -47,7 +49,6 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     val w2s = w4s && !n2s && io.packets_out.out_s.ready // w loses to n
     val w2p = w4p && !n2p
     val p2e = p4e && !w2e && io.packets_out.out_e.ready
-    val p2s = p4s && !w2s && !n2s && io.packets_out.out_s.ready
 
     //second set of intents + conflicts
     val s4n = ((y =/= io.packets_in.in_s.bits.dst.y) && io.packets_in.in_s.valid.asBool) //go straight
@@ -66,14 +67,16 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     val e2n = e4n && !s2n && io.packets_out.out_n.ready // e loses to s
     val e2p = e4p && !s2p && !n2p && !w2p // this noc lower prio output
     val p2w = p4w && !e2w && io.packets_out.out_w.ready
-    val p2n = p4n && !e2n && !s2n && io.packets_out.out_n.ready // simplify this signal for better synth
 
     // extra turns for horiz-first routing
     val w4n = ((x === io.packets_in.in_w.bits.dst.x) && (y < io.packets_in.in_w.bits.dst.y) && io.packets_in.in_w.valid.asBool)
     val e4s = ((x === io.packets_in.in_e.bits.dst.x) && (y > io.packets_in.in_e.bits.dst.y) && io.packets_in.in_e.valid.asBool)
     // and their resolution
-    val w2n = w4n && !s2n && !e2n && !io.packets_out.out_n.ready //these turns are lower prio than in-noc turns
-    val e2s = e4s && !n2s && !w2s && !io.packets_out.out_s.ready
+    val w2n = w4n && !s2n && !e2n && io.packets_out.out_n.ready //these turns are lower prio than in-noc turns
+    val e2s = e4s && !n2s && !w2s && io.packets_out.out_s.ready
+
+    val p2s = p4s && !w2s && !n2s && io.packets_out.out_s.ready && !e2s // planets injecting onto NoC has lowest priority
+    val p2n = p4n && !e2n && !s2n && io.packets_out.out_n.ready && !w2n // simplify this signal for better synth
     
     // deprioritize p2p as much as possible
     val p2p = p4p && !n2p && !e2p && !w2p && !s2p
@@ -233,6 +236,49 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
 
 }
 
+// class DisgustingMaxBundle(params: GameParameters) extends Bundle{
+//     val max_val = UInt(params.max_fleet_hp_len.W)
+//     val next_val = UInt(params.max_fleet_hp_len.W)
+// }
+
+class FightPerSide(params: GameParameters) extends Module {
+    val io = IO(new Bundle{
+        val ins = Vec(params.num_players, Flipped(Decoupled(new Ship(params))))
+        val out = Decoupled(new Ship(params)) // consider changing this over to just the bits + valids, idk if we need readys if no regs or blocking logic
+    })
+
+    // commit combat between all sides >:D
+    val strengths = io.ins.map((ship: DecoupledIO[Ship]) => Mux(ship.valid, ship.bits.fleet_hp, 0.U)) // collect valid strengths
+    val max_strength = strengths.reduce((a,b) => Mux(a > b, a, b)) // find the largest value
+    val second_max_strength = strengths.reduce((a,b) => Mux(a === max_strength, Mux(b === max_strength, 0.U, b), Mux(b === max_strength, a, Mux(a > b, a, b))))
+
+    val who_is_max = VecInit(strengths.map(_ === max_strength)) // there can be ties
+    val max_index = PriorityEncoder(who_is_max) // do this instead of OHtoUInt as we might have ties, idk if this makes an issue, maybe chisel has an internal assertion I didn't check.
+
+    // val rand = LFSR(params.num_players)
+    // val rand_max = who_is_max.zipWithIndex.map { case (isMax, idx) => rand(idx) && isMax}
+    // val maybe_one_hot = Mux(rand_max.reduce(_ || _), rand_max, who_is_max) //could randomly say nobody wins LOL
+    // val max_index = PriorityEncoder(maybe_one_hot) // prio encode remaining ties to a 1H index
+
+    val MAD = (PopCount(who_is_max) =/= 1.U) //if more than 1 max value (or no valid ships), everything blows each other up :)
+
+    // val max_bundle = new DisgustingMaxBundle(params)
+    // max_bundle = strengths.foldLeft[DisgustingMaxBundle](new DisgustingMaxBundle(params).Lit(_.max_val -> 0.U(params.max_fleet_hp_len.W), _.next_val -> 0.U(params.max_fleet_hp_len.W))) 
+    //     { case ((max_bundle.max_val, max_bundle.next_val), value) =>
+    //     Mux(value > max_bundle.max_val, (value, max_bundle.max_val), Mux(value > max_bundle.next_val, (max_bundle.max_val, value), (max_bundle.max_val, max_bundle.next_val)))} // get the second largest value in a disgusting mux chain T_T
+
+    when (MAD) { //if we blow everything up, nothing is valid LOL
+        io.out.bits := DontCare 
+        io.out.valid := false.B 
+    }.otherwise {
+        io.out.bits := io.ins(max_index).bits
+        io.out.bits.fleet_hp := max_strength - second_max_strength // adjusted HP post fight
+        io.out.valid := true.B
+    }
+    
+    //the idea is to take the strongest ship and throw everything else against it
+    //guaranteed to only have one ship per side here
+}
 
 
 class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
@@ -244,6 +290,7 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
 
     //val vcs_in = Seq.fill(params.num_players)(Wire(new InPerSide(params)))
     val vc_in_reg = Reg(Vec(params.num_players, new InPerSide(params))) // I am honestly not sure if this works but sure it does!
+    // TODO: port all these over to regEnables
     
     for(i <- 0 until params.num_players){//update VC if the side matches iff not backpressured
         when(vc_in_reg(i).in_n.ready && (io.in.in_n.bits.general_id.side === i.U)){
@@ -260,17 +307,39 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
         }
     }
 
-    val vc_out_reg = Reg(Vec(params.num_players, new OutPerSide(params)))  //output VCs 
+    val vc_out_wire = Wire(Vec(params.num_players, new OutPerSide(params)))  //output VC must be RegEnables, change the Vec Wrapper but use wires for now because I am LAZY
     val planet_in_ready_fanout = Wire(Vec(params.num_players, UInt(1.W)))  //fanout for planet ready signals
 
     val vc_routers = Seq[Router]()
     for (i <- 0 until params.num_players){
         vc_routers :+ Module(new Router(params, x.U, y.U))//route per vc. as bp is only valid within vc, otherwise they fight!
         vc_routers(i).io.packets_in <> vc_in_reg(i)
-        vc_routers(i).io.planet_in.bits := io.in_p.bits // note PE is not registered in/out!
+        vc_routers(i).io.planet_in.bits := io.in_p.bits // note PE is not registered in!
         vc_routers(i).io.planet_in.valid := ((io.in_p.bits.general_id.side === i.U) && io.in_p.valid)
         vc_routers(i).io.planet_in.ready := planet_in_ready_fanout(i)
-        vc_routers(i).io.packets_out <> vc_out_reg(i)
+        vc_routers(i).io.packets_out <> vc_out_wire(i)
     }
     io.in_p.ready := planet_in_ready_fanout.toSeq.reduce(_ & _) //if ANY readys are set to 0, then planet is not ready (a packet is held in the buffer)
+
+    val vc_out_reg = RegInit(Vec(params.num_players, new OutPerSide(params)), Vec(params.num_players, 
+        new OutPerSide(params).Lit(
+            _.out_n.bits -> DontCare,
+            _.out_s.bits -> DontCare,
+            _.out_w.bits -> DontCare,
+            _.out_e.bits -> DontCare,
+            _.out_p.bits -> DontCare,
+            _.out_n.ready -> true.B ,
+            _.out_s.ready -> true.B,
+            _.out_e.ready -> true.B,
+            _.out_w.ready -> true.B,
+            _.out_p.ready -> true.B,
+            _.out_n.valid -> false.B,
+            _.out_s.valid -> false.B,
+            _.out_e.valid -> false.B,
+            _.out_w.valid -> false.B,
+            _.out_p.valid -> false.B
+            ))) // init to a safe null state
+    
+    //first we fight per side, then per switch
+
 }
