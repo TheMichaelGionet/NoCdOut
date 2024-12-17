@@ -370,7 +370,7 @@ class GeneralMux( params : GameParameters, general_builders : List[GeneralBuilde
     io.how_much_turret_hp   := Mux( io.is_owned, how_much_turret_hp( io.owner ),    0.U )
 }
 
-/*
+
 class Planet(   resource_production_rate    : Int, 
                 max_resources               : Int, 
 
@@ -386,8 +386,6 @@ class Planet(   resource_production_rate    : Int,
                 x_pos                       : Int, // the position on the NoC. 
                 y_pos                       : Int
                 ) extends Sector( params, buffer_depth )
-    
-
 {
     // State stuff
     val is_owned            = RegInit( owned_by_default.B )
@@ -397,7 +395,7 @@ class Planet(   resource_production_rate    : Int,
     val limit_resources     = RegInit( max_resources.U( params.max_resource_val_len.W ) )
     val resource_prod       = RegInit( resource_production_rate.U( params.max_resource_val_len.W ) )
 
-    val turret_hp           = RegInit( 0.U( max_turret_hp_len.W ) )
+    val turret_hp           = RegInit( 0.U( params.max_turret_hp_len.W ) )
 
     val ship_garrison       = Reg( new Ship( params ) )
     val garrison_valid      = RegInit( false.B )
@@ -424,6 +422,7 @@ class Planet(   resource_production_rate    : Int,
         // Sometimes the output buffer might not be able to accept,
         // but now the game will not deadlock.
         // So ships can just get destroyed sometimes, and that can be okay. 
+        // Canonically, if the atmosphere is cluttered, the closest ship just crash lands and dies. 
         input_buffer.io.out.ready   := true.B
     }
 
@@ -436,7 +435,8 @@ class Planet(   resource_production_rate    : Int,
     general_mux.io.under_attack     := combat_handler.io.do_damage
     general_mux.io.ship_was_built   := garrison_valid
     general_mux.io.is_owned         := is_owned
-    general_mux.io.owned_by         := owned_by
+    general_mux.io.owner            := owned_by
+    general_mux.io.owner_changed    := combat_handler.io.planet_takeover
     
     economy_handler.io.do_build_ship            := general_mux.io.do_build_ship
     economy_handler.io.which_ship               := general_mux.io.which_ship
@@ -448,12 +448,44 @@ class Planet(   resource_production_rate    : Int,
     economy_handler.io.resources                := resources
     economy_handler.io.max_resources            := limit_resources
     economy_handler.io.add_resources            := resource_prod
-    economy_handler.io.ship_backpressure        := ???
+    economy_handler.io.ship_backpressure        := garrison_valid && !ship_event_handler.io.consume_new_ship
+
+    resources                                   := economy_handler.io.resources_after_purchases
+
     when( economy_handler.io.ship_valid )
     {
         ship_garrison   := economy_handler.io.ship
+        garrison_valid  := true.B
+    }
+    .elsewhen( ship_event_handler.io.consume_new_ship )
+    {
+        garrison_valid  := false.B
+    }
+    
+    ship_event_handler.io.ship                  := input_buffer.io.out.bits
+    ship_event_handler.io.ship_valid            := input_buffer.io.out.valid
+    ship_event_handler.io.new_ship              := ship_garrison
+    ship_event_handler.io.new_ship_valid        := garrison_valid
+    ship_event_handler.io.new_route             := general_mux.io.command_where
+    ship_event_handler.io.is_owned              := is_owned
+    ship_event_handler.io.owner.side            := owned_by
+    ship_event_handler.io.owner.general_owned   := general_mux.io.general_id
+    
+    output_buffer.io.out.bits                   := ship_event_handler.io.ship_out
+    output_buffer.io.out.valid                  := ship_event_handler.io.ship_out_valid
+    
+    combat_handler.io.ship                      := input_buffer.io.out.bits
+    combat_handler.io.do_damage                 := ship_event_handler.io.do_damage
+    combat_handler.io.current_hp                := turret_hp
+    combat_handler.io.max_hp                    := params.max_turret_hp.U
+    combat_handler.io.hp_inc                    := economy_handler.io.inc_turret_hp_out
+
+    turret_hp                                   := combat_handler.io.new_hp
+    when( combat_handler.io.planet_takeover )
+    {
+        is_owned    := true.B
+        owned_by    := combat_handler.io.new_side
     }
 
-    
 }
-*/
+
