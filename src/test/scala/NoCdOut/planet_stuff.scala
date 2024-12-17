@@ -555,4 +555,79 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.how_many_ships.expect( 42.U )
         }
     }
+
+
+    "empty space should swap src and dst and otherwise keep everything else the same" in {
+        
+        val input_params    = new GameParametersInput
+        {
+            // Use defaults
+        }
+
+        val params  = new GameParameters( input_params )
+
+        
+
+        
+        simulate( new EmptySpace( params, 2 ) ) 
+        {
+            dut =>
+            
+            dut.io.in.ship_valid.poke( false.B )
+            dut.io.out.bp.poke( false.B )
+
+            dut.io.in.ship.src.x.poke( 3.U )
+            dut.io.in.ship.src.y.poke( 4.U )
+            dut.io.in.ship.dst.x.poke( 1.U )
+            dut.io.in.ship.dst.y.poke( 2.U )
+            dut.io.in.ship.general_id.side.poke( 1.U )
+            dut.io.in.ship.general_id.general_owned.poke( 3.U )
+            dut.io.in.ship.ship_class.poke( 2.U )
+            dut.io.in.ship.fleet_hp.poke( 5.U )
+            dut.io.in.ship.scout_data.data_valid.poke( true.B )
+            dut.io.in.ship.scout_data.loc.x.poke( 6.U )
+            dut.io.in.ship.scout_data.loc.y.poke( 7.U )
+            dut.io.in.ship.scout_data.side.poke( 2.U )
+
+            dut.reset.poke(true.B)
+            dut.clock.step()
+            dut.reset.poke(false.B)
+
+            dut.io.in.ship_valid.poke( true.B )
+            
+            dut.clock.step()
+            dut.io.in.ship_valid.poke( false.B )
+            
+            var count_cycles = 1
+            var did_terminate = false
+            //println( "4 ship_out_valid is " + dut.io.ship_out_valid.peekValue().asBigInt )
+            while( count_cycles < 10 )
+            {
+                if( dut.io.out.ship_valid.peekValue.asBigInt == 1 )
+                {
+                    dut.io.out.ship.dst.x.expect( 3.U )
+                    dut.io.out.ship.dst.y.expect( 4.U )
+                    dut.io.out.ship.src.x.expect( 1.U )
+                    dut.io.out.ship.src.y.expect( 2.U )
+                    dut.io.out.ship.general_id.side.expect( 1.U )
+                    dut.io.out.ship.general_id.general_owned.expect( 3.U )
+                    dut.io.out.ship.ship_class.expect( 2.U )
+                    dut.io.out.ship.fleet_hp.expect( 5.U )
+                    dut.io.out.ship.scout_data.data_valid.expect( true.B )
+                    dut.io.out.ship.scout_data.loc.x.expect( 6.U )
+                    dut.io.out.ship.scout_data.loc.y.expect( 7.U )
+                    dut.io.out.ship.scout_data.side.expect( 2.U )
+                    did_terminate   = true
+                }
+                dut.clock.step()
+                count_cycles += 1
+            }
+            
+            if( did_terminate == false )
+            {
+                dut.io.out.ship_valid.expect( true.B )
+            }
+            
+        }
+    }
 }
