@@ -52,7 +52,7 @@ class EmptySpace( params : GameParameters, buffer_depth : Int ) extends Sector( 
         val fleet_hp        = Output(UInt( params.max_fleet_hp_len.W ))
         val scout_data      = Output(new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len ))
     */
-    output_buffer.io.in.bits.dst            := input_buffer.io.out.bits.src
+    output_buffer.io.in.bits.dst            := input_buffer.io.out.bits.src // swap src and dst to route ships back
     output_buffer.io.in.bits.src            := input_buffer.io.out.bits.dst
     output_buffer.io.in.bits.general_id     := input_buffer.io.out.bits.general_id
     output_buffer.io.in.bits.ship_class     := input_buffer.io.out.bits.ship_class
@@ -220,6 +220,7 @@ class EconomyHandler( params : GameParameters ) extends Module
         val max_resources       = Input( UInt( params.max_resource_val_len.W ) )
         val add_resources       = Input( UInt( params.max_resource_val_len.W ) )
         
+        val ship_backpressure   = Input( Bool() )
         val ship                = Output( new Ship( params ) )
         val ship_valid          = Output( Bool() )
         
@@ -248,7 +249,7 @@ class EconomyHandler( params : GameParameters ) extends Module
     
     // Decide if purchasing a ship is possible given the amount of funds
     
-    val can_purchase_ship           = ship_price <= io.resources
+    val can_purchase_ship           = ( ship_price <= io.resources ) && !io.ship_backpressure
     val will_purchase_ship          = can_purchase_ship && io.do_build_ship
     
     // Decide if purchasing the turret hp given the ship purchase (if one exists) is possible given the amount of funds and whether or not it would overflow. .

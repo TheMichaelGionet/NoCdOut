@@ -326,6 +326,8 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.max_resources.poke( 1.U )
             dut.io.add_resources.poke( 0.U )
 
+            dut.io.ship_backpressure.poke( false.B )
+
             dut.reset.poke( true.B )
             dut.clock.step()
             dut.reset.poke( false.B )
@@ -363,6 +365,12 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.ship.fleet_hp.expect( 5.U )
             dut.io.ship.general_id.side.expect( 1.U )
             dut.io.ship.general_id.general_owned.expect( 3.U )
+
+            dut.io.ship_backpressure.poke( true.B ) // do nothing if backpressured
+            dut.io.ship_valid.expect( false.B )
+
+
+            dut.io.ship_backpressure.poke( false.B )
 
             // trying to buy too little amount of ships rectifies it to the min amount
 
