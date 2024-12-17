@@ -9,23 +9,25 @@ import ships._
 import general._
 
 
+class SectorBundle( params : GameParameters ) extends Bundle
+{
+    val in = new Bundle
+    {
+        val bp          = Output( Bool() )
+        val ship        = Input( new Ship( params ) )
+        val ship_valid  = Input( Bool() )
+    }
+    val out = new Bundle
+    {
+        val bp          = Input( Bool() )
+        val ship        = Output( new Ship( params ) )
+        val ship_valid  = Output( Bool() )
+    }
+}
+
 abstract class Sector( params : GameParameters, buffer_depth : Int ) extends Module
 {
-    val io = IO(new Bundle
-    {
-        val in = new Bundle
-        {
-            val bp          = Output( Bool() )
-            val ship        = Input( new Ship( params ) )
-            val ship_valid  = Input( Bool() )
-        }
-        val out = new Bundle
-        {
-            val bp          = Input( Bool() )
-            val ship        = Output( new Ship( params ) )
-            val ship_valid  = Output( Bool() )
-        }
-    })
+    val io = IO( new SectorBundle( params ) )
 
     val input_buffer    = Module( new FIFO( buffer_depth, new Ship( params ) ) )
     val output_buffer   = Module( new FIFO( buffer_depth, new Ship( params ) ) )
@@ -370,6 +372,20 @@ class GeneralMux( params : GameParameters, general_builders : List[GeneralBuilde
     io.how_much_turret_hp   := Mux( io.is_owned, how_much_turret_hp( io.owner ),    0.U )
 }
 
+class PlanetStateBundle( params : GameParameters ) extends Bundle
+{
+    val is_owned            = Output( Bool() )
+    val owned_by            = Output( UInt( params.num_players_len.W ) )
+
+    val resources           = Output( UInt( params.max_resource_val_len.W ) )
+    val limit_resources     = Output( UInt( params.max_resource_val_len.W ) )
+    val resource_prod       = Output( UInt( params.max_resource_val_len.W ) )
+
+    val turret_hp           = Output( UInt( params.max_turret_hp_len.W ) )
+
+    val ship_garrison       = Output( new Ship( params ) )
+    val garrison_valid      = Output( Bool() )
+}
 
 class Planet(   resource_production_rate    : Int, 
                 max_resources               : Int, 
@@ -387,20 +403,7 @@ class Planet(   resource_production_rate    : Int,
                 y_pos                       : Int
                 ) extends Sector( params, buffer_depth )
 {
-    val state_observation   = IO( new Bundle
-    {
-        val is_owned            = Output( Bool() )
-        val owned_by            = Output( UInt( params.num_players_len.W ) )
-
-        val resources           = Output( UInt( params.max_resource_val_len.W ) )
-        val limit_resources     = Output( UInt( params.max_resource_val_len.W ) )
-        val resource_prod       = Output( UInt( params.max_resource_val_len.W ) )
-
-        val turret_hp           = Output( UInt( params.max_turret_hp_len.W ) )
-
-        val ship_garrison       = Output( new Ship( params ) )
-        val garrison_valid      = Output( Bool() )
-    } )
+    val state_observation   = IO( new PlanetStateBundle( params ) )
 
     val debug_observables   = IO( new Bundle
     {
