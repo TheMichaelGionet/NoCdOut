@@ -6,6 +6,7 @@ import chisel3.util.Decoupled
 
 import common._
 import ships._
+import general._
 
 
 abstract class Sector( params : GameParameters, buffer_depth : Int ) extends Module
@@ -263,6 +264,85 @@ class EconomyHandler( params : GameParameters ) extends Module
     val new_resource                    = io.resources + resource_delta
     
     io.resources_after_purchases        := Mux( new_resource > io.max_resources, io.max_resources, new_resource )
+}
+
+class GeneralMux( params : GameParameters, general_builders : List[GeneralBuilder], general_ids : List[Int] ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val ship_it_sees        = Input( new Ship( params ) )
+        val ship_valid          = Input( Bool() )
+        
+        val resources           = Input( UInt( params.max_resource_val_len.W ) )
+        val limit_resources     = Input( UInt( params.max_resource_val_len.W ) )
+
+        val turret_hp           = Input( UInt( params.max_turret_hp_len.W ) )
+        val limit_turret_hp     = Input( UInt( params.max_turret_hp_len.W ) )
+
+        val under_attack        = Input( Bool() )
+        val ship_was_built      = Input( Bool() )
+
+
+        val is_owned            = Input( Bool() )
+        val owner               = Input( UInt( params.num_players_len.W ) ) // owner === side
+        val owner_changed       = Input( Bool() )
+
+        val do_build_ship       = Output( Bool() )
+        val which_ship          = Output( UInt( params.num_ship_classes_len.W ) )
+        val how_many_ships      = Output( UInt( params.max_fleet_hp_len.W ) )
+        
+        val command_where       = Output( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
+        
+        val add_turret_hp       = Output( Bool() )
+        val how_much_turret_hp  = Output( UInt( params.max_turret_hp_len.W ) )
+
+        val general_id          = Output( UInt( params.num_generals_len.W ) ) // general_id === general_owned
+    } )
+
+    val generalzzz          = general_builders.map{ x => Module( x() ) }
+    val general_id_regs     = RegInit( VecInit( general_ids.map{ x => x.U( params.num_generals_len.W ) } ) )
+    
+    io.general_id           := general_id_regs( io.owner )
+    
+    val do_build_ship       = Wire( Vec( params.num_players, Bool() ) )
+    val which_ship          = Wire( Vec( params.num_players, UInt( params.num_ship_classes_len.W ) ) )
+    val how_many_ships      = Wire( Vec( params.num_players, UInt( params.max_fleet_hp_len.W ) ) )
+    
+    val command_where       = Wire( Vec( params.num_players, new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) ) )
+    val add_turret_hp       = Wire( Vec( params.num_players, Bool() ) )
+    val how_much_turret_hp  = Wire( Vec( params.num_players, UInt( params.max_turret_hp_len.W ) ) )
+
+    var index = 0
+    
+    for( g <- generalzzz )
+    {
+        g.reset                     := ( this.reset.asBool || io.owner_changed ) // This just makes further logic less complicated within each general
+        g.io.ship_it_sees           := io.ship_it_sees
+        g.io.ship_valid             := io.ship_valid
+        g.io.resources              := io.resources
+        g.io.limit_resources        := io.limit_resources
+        g.io.turret_hp              := io.turret_hp
+        g.io.limit_turret_hp        := io.limit_turret_hp
+        g.io.under_attack           := io.under_attack
+        g.io.ship_was_built         := io.ship_was_built
+        
+        do_build_ship( index )      := g.io.do_build_ship
+        which_ship( index )         := g.io.which_ship
+        how_many_ships( index )     := g.io.how_many_ships
+        command_where( index )      := g.io.command_where
+        add_turret_hp( index )      := g.io.add_turret_hp
+        how_much_turret_hp( index ) := g.io.how_much_turret_hp
+        
+        index += 1
+    }
+
+    io.do_build_ship        := Mux( io.is_owned, do_build_ship( io.owner ),         false.B )
+    io.which_ship           := Mux( io.is_owned, which_ship( io.owner ),            0.U )
+    io.how_many_ships       := Mux( io.is_owned, how_many_ships( io.owner ),        0.U )
+    io.command_where.x      := Mux( io.is_owned, command_where( io.owner ).x,       0.U )
+    io.command_where.y      := Mux( io.is_owned, command_where( io.owner ).y,       0.U )
+    io.add_turret_hp        := Mux( io.is_owned, add_turret_hp( io.owner ),         0.U )
+    io.how_much_turret_hp   := Mux( io.is_owned, how_much_turret_hp( io.owner ),    0.U )
 }
 
 /*

@@ -52,6 +52,17 @@ class GeneralNoneBuffs( params : GameParameters ) extends GeneralBuffs( params )
     def routing_behavior    = 0
 }
 
+class GeneralTestDFA( params : GameParameters, buffs : GeneralBuffs, value_it_spit_out : Int ) extends GeneralDFA( params, buffs )
+{
+    io.do_build_ship        := false.B
+    io.which_ship           := 0.U
+    io.how_many_ships       := value_it_spit_out.U
+    io.command_where.x      := 0.U
+    io.command_where.y      := 0.U
+    io.add_turret_hp        := 0.U
+    io.how_much_turret_hp   := 0.U
+}
+
 class GeneralJeffBuffs( params : GameParameters ) extends GeneralBuffs( params )
 {
     def resource_prod_buff  = 1.0
@@ -91,7 +102,6 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
 
     io.how_many_ships   := Mux( startup, 1.U, 5.U )
 
-    //io.command_ship     := io.ship_valid && ( io.ship_it_sees.general_id.general_owned === general_id.U )
     io.command_where.x  := x_loc // send ships randomly
     io.command_where.y  := y_loc
 }
@@ -107,6 +117,12 @@ class GeneralJeffBuilder( params : GameParameters, general_id : Int ) extends Ge
 {
     buffs       = new GeneralJeffBuffs( params )
     def gen()   = new GeneralJeffDFA( params, buffs, general_id )
+}
+
+class GeneralTestBuilder( params : GameParameters, le_parameter_to_test_and_make_sure_it_all_otherwise_works_but_isnt_for_real_applications : Int, general_id : Int ) extends GeneralBuilder( params, general_id )
+{
+    buffs       = new GeneralNoneBuffs( params )
+    def gen()   = new GeneralTestDFA( params, buffs, le_parameter_to_test_and_make_sure_it_all_otherwise_works_but_isnt_for_real_applications )
 }
 
 

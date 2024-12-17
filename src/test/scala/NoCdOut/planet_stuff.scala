@@ -9,6 +9,7 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 
 import common._
+import general._
 
 class planet_test extends AnyFreeSpec with Matchers {
 
@@ -478,6 +479,72 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.inc_turret_hp_out.expect( 0.U )
 
             dut.io.resources_after_purchases.expect( 5.U )
+        }
+    }
+
+    "general mux" in {
+        
+        val input_params    = new GameParametersInput
+        {
+            // Use defaults
+        }
+
+        val params              = new GameParameters( input_params )
+
+        val general0_bill_dor   = new GeneralTestBuilder( params, 69, 1 )
+        val general1_bill_dor   = new GeneralTestBuilder( params, 42, 2 ) // Just imagine that there is a 0 after 42
+        
+        val bill_dorr_list      = List[GeneralBuilder]( general0_bill_dor, general1_bill_dor )
+        val general_ids         = List[Int]( 1, 2 )
+        
+        simulate( new GeneralMux( params, bill_dorr_list, general_ids ) ) 
+        {
+            dut =>
+
+            dut.reset.poke( true.B )
+            dut.clock.step()
+            dut.reset.poke( false.B )
+
+            dut.io.ship_it_sees.src.x.poke( 0.U )
+            dut.io.ship_it_sees.src.y.poke( 0.U )
+            dut.io.ship_it_sees.dst.x.poke( 0.U )
+            dut.io.ship_it_sees.dst.y.poke( 0.U )
+            dut.io.ship_it_sees.general_id.side.poke( 0.U )
+            dut.io.ship_it_sees.general_id.general_owned.poke( 0.U )
+            dut.io.ship_it_sees.ship_class.poke( 0.U )
+            dut.io.ship_it_sees.fleet_hp.poke( 0.U )
+            dut.io.ship_it_sees.scout_data.data_valid.poke( false.B )
+            dut.io.ship_it_sees.scout_data.loc.x.poke( 0.U )
+            dut.io.ship_it_sees.scout_data.loc.y.poke( 0.U )
+            dut.io.ship_it_sees.scout_data.side.poke( 0.U )
+            dut.io.ship_valid.poke( false.B )
+
+            dut.io.resources.poke( 60.U )
+            dut.io.limit_resources.poke( 100.U )
+
+            dut.io.turret_hp.poke( 10.U )
+            dut.io.limit_turret_hp.poke( 40.U )
+            
+            dut.io.under_attack.poke( false.B )
+            
+            dut.io.is_owned.poke( false.B )
+            dut.io.owner.poke( 0.U )
+            dut.io.owner_changed.poke( false.B )
+            
+            // When not owned, it should just spit out 0
+            dut.io.how_many_ships.expect( 0.U )
+
+            // When owned, it spits out whatever from whatever general is selected
+            dut.io.is_owned.poke( true.B )
+            dut.io.owner.poke( 0.U )
+
+            dut.io.how_many_ships.expect( 69.U )
+
+
+            dut.io.is_owned.poke( true.B )
+            dut.io.owner.poke( 1.U )
+
+            dut.io.how_many_ships.expect( 42.U )
         }
     }
 }
