@@ -59,11 +59,25 @@ class GeneralTestDFA( params : GameParameters, buffs : GeneralBuffs, value_it_sp
     io.how_many_ships       := value_it_spit_out.U
     io.command_where.x      := 0.U
     io.command_where.y      := 0.U
-    io.add_turret_hp        := 0.U
+    io.add_turret_hp        := false.B
     io.how_much_turret_hp   := 0.U
 }
 
-class GeneralJeffBuffs( params : GameParameters ) extends GeneralBuffs( params )
+class GeneralTestPlanetDFA( params : GameParameters, buffs : GeneralBuffs, hp_for_unique_identifier : Int ) extends GeneralDFA( params, buffs )
+{
+    val time_counter        = RegInit( 0.U(64.W) )
+    time_counter            := time_counter + 1.U
+
+    io.do_build_ship        := ( time_counter === 10.U )
+    io.which_ship           := 0.U // scout
+    io.how_many_ships       := hp_for_unique_identifier.U
+    io.command_where.x      := 3.U
+    io.command_where.y      := 4.U
+    io.add_turret_hp        := ( time_counter === 20.U )
+    io.how_much_turret_hp   := 10.U
+}
+
+class GeneralJeffBuffs( params : GameParameters ) extends GeneralBuffs( params ) 
 {
     def resource_prod_buff  = 1.0
     def combat_buff         = 1.0
@@ -125,4 +139,9 @@ class GeneralTestBuilder( params : GameParameters, le_parameter_to_test_and_make
     def gen()   = new GeneralTestDFA( params, buffs, le_parameter_to_test_and_make_sure_it_all_otherwise_works_but_isnt_for_real_applications )
 }
 
+class GeneralTestPlanetBuilder( params : GameParameters, hp : Int, general_id : Int ) extends GeneralBuilder( params, general_id )
+{
+    buffs       = new GeneralNoneBuffs( params )
+    def gen()   = new GeneralTestPlanetDFA( params, buffs, hp )
+}
 

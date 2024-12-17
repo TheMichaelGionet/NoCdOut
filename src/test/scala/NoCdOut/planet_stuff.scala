@@ -724,7 +724,261 @@ class planet_test extends AnyFreeSpec with Matchers {
             {
                 dut.io.out.ship_valid.expect( true.B )
             }
+        }
+    }
+
+
+
+    "test planet" in {
+        
+        val input_params    = new GameParametersInput
+        {
+            // Use defaults
+        }
+
+        val params  = new GameParameters( input_params )
+
+        val bill_dorr0 = new GeneralTestPlanetBuilder( params, 10, 1 )
+        val bill_dorr1 = new GeneralTestPlanetBuilder( params, 15, 2 )
+        
+        val general_builders    = List[GeneralBuilder]( bill_dorr0, bill_dorr1 )
+        val general_ids         = List[Int]( 1, 2 )
+        
+        def planet_build() : Planet =
+        {
+            val resource_production_rate    = 5
+            val max_resources               = 100
+            val default_team                = 0
+            val owned_by_default            = false
+            val buffer_depth                = 2
+            val x_pos                       = 1
+            val y_pos                       = 3
+
+            return new Planet(  resource_production_rate, 
+                                max_resources, 
+                                params, 
+                                general_builders,
+                                general_ids,
+                                default_team,
+                                owned_by_default,
+                                buffer_depth,
+                                x_pos, // the position on the NoC. 
+                                y_pos)
+        }
+        
+        simulate( planet_build() ) 
+        {
+            dut =>
             
+            dut.io.in.ship_valid.poke( false.B )
+            dut.io.out.bp.poke( false.B )
+
+            dut.io.in.ship.src.x.poke( 3.U )
+            dut.io.in.ship.src.y.poke( 4.U )
+            dut.io.in.ship.dst.x.poke( 1.U )
+            dut.io.in.ship.dst.y.poke( 2.U )
+            dut.io.in.ship.general_id.side.poke( 0.U )
+            dut.io.in.ship.general_id.general_owned.poke( 3.U )
+            dut.io.in.ship.ship_class.poke( 2.U )
+            dut.io.in.ship.fleet_hp.poke( 5.U )
+            dut.io.in.ship.scout_data.data_valid.poke( true.B )
+            dut.io.in.ship.scout_data.loc.x.poke( 6.U )
+            dut.io.in.ship.scout_data.loc.y.poke( 7.U )
+            dut.io.in.ship.scout_data.side.poke( 2.U )
+
+            dut.reset.poke(true.B)
+            dut.clock.step()
+            dut.reset.poke(false.B)
+
+            dut.io.out.ship_valid.expect( false.B )
+
+            dut.state_observation.is_owned.expect( false.B )
+            dut.state_observation.resources.expect( 0.U )
+            dut.state_observation.limit_resources.expect( 100.U )
+            dut.state_observation.resource_prod.expect( 5.U )
+            dut.state_observation.turret_hp.expect( 0.U )
+            dut.state_observation.garrison_valid.expect( false.B )
+
+            println( "cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
+
+            var cycle = 0
+
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+
+            //println(  "" + cycle + 
+            //            ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg combat turret hp out " + dut.debug_observables.combat_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg general_wants_hp " + dut.debug_observables.general_wants_hp.peekValue().asBigInt +
+            //            ", dbg ship_is_seen " + dut.debug_observables.ship_is_seen.peekValue().asBigInt +
+            //            ", dbg max_hp_seen_by_combat" + dut.debug_observables.ship_is_seen.peekValue().asBigInt )
+
+            dut.io.in.ship_valid.poke( true.B )
+            dut.clock.step()
+            cycle += 1
+
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            
+            //println(  "" + cycle + 
+            //            ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg combat turret hp out " + dut.debug_observables.combat_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg general_wants_hp " + dut.debug_observables.general_wants_hp.peekValue().asBigInt +
+            //            ", dbg ship_is_seen " + dut.debug_observables.ship_is_seen.peekValue().asBigInt +
+            //            ", dbg max_hp_seen_by_combat " + dut.debug_observables.max_hp_seen_by_combat.peekValue().asBigInt )
+
+            dut.io.in.ship_valid.poke( false.B )
+
+            dut.clock.step()
+            cycle += 1
+
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+
+            dut.clock.step()
+                cycle += 1
+
+            //println(  "" + cycle + 
+            //            ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg combat turret hp out " + dut.debug_observables.combat_turret_hp_out.peekValue().asBigInt + 
+            //            ", dbg general_wants_hp " + dut.debug_observables.general_wants_hp.peekValue().asBigInt +
+            //            ", dbg ship_is_seen " + dut.debug_observables.ship_is_seen.peekValue().asBigInt +
+            //            ", dbg max_hp_seen_by_combat " + dut.debug_observables.max_hp_seen_by_combat.peekValue().asBigInt )
+            
+            dut.state_observation.is_owned.expect( true.B )
+            dut.state_observation.owned_by.expect( 0.U )
+
+            while( cycle < 30 )
+            {
+                
+                println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+
+                if( dut.io.out.ship_valid.peekValue().asBigInt == 1 )
+                {
+                    println( "ship out at cycle " + cycle )
+                    //dut.io.out.ship_valid.expect( true.B )
+                    dut.io.out.ship.src.x.expect( 1.U )
+                    dut.io.out.ship.src.y.expect( 3.U )
+                    dut.io.out.ship.dst.x.expect( 3.U )
+                    dut.io.out.ship.dst.y.expect( 4.U )
+                    dut.io.out.ship.general_id.side.expect( 0.U )
+                    dut.io.out.ship.general_id.general_owned.expect( 1.U )
+                    dut.io.out.ship.fleet_hp.expect( 10.U )
+                    dut.io.out.ship.scout_data.data_valid.expect( false.B )
+                }
+
+                //println(  "" + cycle + 
+                //        ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
+                //        ", dbg combat turret hp out " + dut.debug_observables.combat_turret_hp_out.peekValue().asBigInt + 
+                //        ", dbg general_wants_hp " + dut.debug_observables.general_wants_hp.peekValue().asBigInt +
+                //        ", dbg ship_is_seen " + dut.debug_observables.ship_is_seen.peekValue().asBigInt +
+                //        ", dbg max_hp_seen_by_combat " + dut.debug_observables.max_hp_seen_by_combat.peekValue().asBigInt )
+
+                dut.clock.step()
+                cycle += 1
+            }
+            
+            dut.io.in.ship.general_id.side.poke( 1.U )
+            dut.io.in.ship_valid.poke( true.B )
+            
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            
+            dut.clock.step()
+            cycle += 1
+            dut.io.in.ship_valid.poke( false.B )
+            
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            
+            dut.clock.step()
+            cycle += 1
+            
+            dut.state_observation.owned_by.expect( 1.U )
+            
+            println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+
+            while( cycle < 60 )
+            {
+                
+                println(  "" + cycle + 
+                    ", " + dut.state_observation.is_owned.peekValue().asBigInt +
+                    ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
+                    ", " + dut.state_observation.resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.limit_resources.peekValue().asBigInt +
+                    ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
+                    ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
+                    ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+
+                if( dut.io.out.ship_valid.peekValue().asBigInt == 1 )
+                {
+                    println( "ship out at cycle " + cycle )
+                    //dut.io.out.ship_valid.expect( true.B )
+                    dut.io.out.ship.src.x.expect( 1.U )
+                    dut.io.out.ship.src.y.expect( 3.U )
+                    dut.io.out.ship.dst.x.expect( 3.U )
+                    dut.io.out.ship.dst.y.expect( 4.U )
+                    dut.io.out.ship.general_id.side.expect( 1.U )
+                    dut.io.out.ship.general_id.general_owned.expect( 2.U )
+                    dut.io.out.ship.fleet_hp.expect( 15.U )
+                    dut.io.out.ship.scout_data.data_valid.expect( false.B )
+                }
+
+                //println(  "" + cycle + 
+                //        ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
+                //        ", dbg combat turret hp out " + dut.debug_observables.combat_turret_hp_out.peekValue().asBigInt + 
+                //        ", dbg general_wants_hp " + dut.debug_observables.general_wants_hp.peekValue().asBigInt +
+                //        ", dbg ship_is_seen " + dut.debug_observables.ship_is_seen.peekValue().asBigInt +
+                //        ", dbg max_hp_seen_by_combat " + dut.debug_observables.max_hp_seen_by_combat.peekValue().asBigInt )
+
+                dut.clock.step()
+                cycle += 1
+            }
+
         }
     }
 }

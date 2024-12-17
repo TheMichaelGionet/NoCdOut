@@ -186,15 +186,15 @@ class CombatHandler( params : GameParameters ) extends Module
     
     
     val unrectified_hp      = Wire( SInt( (params.max_turret_hp_len+2).W ) )
-    unrectified_hp          := current_hp + hp_inc - damage
+    unrectified_hp          := current_hp +& hp_inc -& damage
     
     
-    val max_hp              = Wire( SInt( (params.max_turret_hp_len+1).W ) )
-    max_hp                  := io.max_hp.asSInt
+    val max_hp              = Wire( UInt( (params.max_turret_hp_len+1).W ) )
+    max_hp                  := io.max_hp
     
     
     val final_hp            = Wire( UInt( params.max_turret_hp_len.W ) )
-    final_hp                := Mux( unrectified_hp > max_hp, io.max_hp, Mux( unrectified_hp < 0.S, 0.U, unrectified_hp.asUInt ) )
+    final_hp                := Mux( unrectified_hp > max_hp.asSInt, io.max_hp, Mux( unrectified_hp < 0.S, 0.U, unrectified_hp.asUInt ) )
     
     
     io.new_hp               := final_hp
@@ -387,6 +387,30 @@ class Planet(   resource_production_rate    : Int,
                 y_pos                       : Int
                 ) extends Sector( params, buffer_depth )
 {
+    val state_observation   = IO( new Bundle
+    {
+        val is_owned            = Output( Bool() )
+        val owned_by            = Output( UInt( params.num_players_len.W ) )
+
+        val resources           = Output( UInt( params.max_resource_val_len.W ) )
+        val limit_resources     = Output( UInt( params.max_resource_val_len.W ) )
+        val resource_prod       = Output( UInt( params.max_resource_val_len.W ) )
+
+        val turret_hp           = Output( UInt( params.max_turret_hp_len.W ) )
+
+        val ship_garrison       = Output( new Ship( params ) )
+        val garrison_valid      = Output( Bool() )
+    } )
+
+    val debug_observables   = IO( new Bundle
+    {
+        val econ_inc_turret_hp_out  = Output( UInt( params.max_turret_hp_len.W ) )
+        val combat_turret_hp_out    = Output( UInt( params.max_turret_hp_len.W ) )
+        val general_wants_hp        = Output( Bool() )
+        val ship_is_seen            = Output( Bool() )
+        val max_hp_seen_by_combat   = Output( UInt( params.max_turret_hp_len.W ) )
+    } )
+    
     // State stuff
     val is_owned            = RegInit( owned_by_default.B )
     val owned_by            = RegInit( default_team.U( params.num_players_len.W ) )
@@ -399,6 +423,15 @@ class Planet(   resource_production_rate    : Int,
 
     val ship_garrison       = Reg( new Ship( params ) )
     val garrison_valid      = RegInit( false.B )
+
+    state_observation.is_owned          := is_owned
+    state_observation.owned_by          := owned_by
+    state_observation.resources         := resources
+    state_observation.limit_resources   := limit_resources
+    state_observation.resource_prod     := resource_prod
+    state_observation.turret_hp         := turret_hp
+    state_observation.ship_garrison     := ship_garrison
+    state_observation.garrison_valid    := garrison_valid
 
     // Big components
 
@@ -450,6 +483,13 @@ class Planet(   resource_production_rate    : Int,
     economy_handler.io.add_resources            := resource_prod
     economy_handler.io.ship_backpressure        := garrison_valid && !ship_event_handler.io.consume_new_ship
 
+
+    debug_observables.econ_inc_turret_hp_out    := economy_handler.io.inc_turret_hp_out
+    debug_observables.combat_turret_hp_out      := combat_handler.io.new_hp
+    debug_observables.general_wants_hp          := general_mux.io.add_turret_hp
+    debug_observables.ship_is_seen              := input_buffer.io.out.valid
+    debug_observables.max_hp_seen_by_combat     := combat_handler.io.max_hp
+
     resources                                   := economy_handler.io.resources_after_purchases
 
     when( economy_handler.io.ship_valid )
@@ -471,8 +511,8 @@ class Planet(   resource_production_rate    : Int,
     ship_event_handler.io.owner.side            := owned_by
     ship_event_handler.io.owner.general_owned   := general_mux.io.general_id
     
-    output_buffer.io.out.bits                   := ship_event_handler.io.ship_out
-    output_buffer.io.out.valid                  := ship_event_handler.io.ship_out_valid
+    output_buffer.io.in.bits                    := ship_event_handler.io.ship_out
+    output_buffer.io.in.valid                   := ship_event_handler.io.ship_out_valid
     
     combat_handler.io.ship                      := input_buffer.io.out.bits
     combat_handler.io.do_damage                 := ship_event_handler.io.do_damage
