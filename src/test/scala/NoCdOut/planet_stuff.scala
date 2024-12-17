@@ -43,6 +43,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             val ship_out_valid  = Output( Bool() )
         
             val do_damage       = Output( Bool() )
+            val consume_new_ship    = Output( Bool() )
             */
 
             dut.io.ship.src.x.poke( 3.U )
@@ -59,6 +60,22 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.ship.scout_data.side.poke( 0.U )
 
             dut.io.ship_valid.poke( false.B )
+
+            dut.io.new_ship.src.x.poke( 0.U )
+            dut.io.new_ship.src.y.poke( 0.U )
+            dut.io.new_ship.dst.x.poke( 0.U )
+            dut.io.new_ship.dst.y.poke( 0.U )
+            dut.io.new_ship.general_id.side.poke( 0.U )
+            dut.io.new_ship.general_id.general_owned.poke( 0.U )
+            dut.io.new_ship.ship_class.poke( 0.U )
+            dut.io.new_ship.fleet_hp.poke( 0.U )
+            dut.io.new_ship.scout_data.data_valid.poke( false.B )
+            dut.io.new_ship.scout_data.loc.x.poke( 0.U )
+            dut.io.new_ship.scout_data.loc.y.poke( 0.U )
+            dut.io.new_ship.scout_data.side.poke( 0.U )
+
+            dut.io.new_ship_valid.poke( false.B )
+
             dut.io.new_route.x.poke( 5.U )
             dut.io.new_route.y.poke( 6.U )
             dut.io.is_owned.poke( false.B )
@@ -72,6 +89,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             
             dut.io.do_damage.expect( false.B )
             dut.io.ship_out_valid.expect( false.B )
+            dut.io.consume_new_ship.expect( false.B )
             
             // ----------- case unowned
             // if unowned and a valid ship is routed to the planet, then it takes damage (iff not scout)
@@ -80,6 +98,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.do_damage.expect(false.B) // It's set to a scout
             //println( "1 ship_out_valid is " + dut.io.ship_out_valid.peekValue().asBigInt )
             dut.io.ship_out_valid.expect( true.B )
+            dut.io.consume_new_ship.expect( false.B )
 
             //println( "2 ship_out.scout_data.data_valid is " + dut.io.ship_out.scout_data.data_valid.peekValue().asBigInt )
             dut.io.ship_out.scout_data.data_valid.expect(true.B)
@@ -93,6 +112,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.do_damage.expect(true.B) // It's set to basic
             dut.io.ship_out_valid.expect( false.B )
             dut.io.ship_out.scout_data.data_valid.expect(false.B)
+            dut.io.consume_new_ship.expect( false.B )
 
             dut.io.ship_valid.poke(false.B)
             dut.io.ship.ship_class.poke(0.U)
@@ -103,6 +123,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             
             dut.io.ship_out_valid.expect( false.B )
             dut.io.do_damage.expect( false.B )
+            dut.io.consume_new_ship.expect( false.B )
             
             // if ship is valid and I own it, it gets routed to the new location specified
             dut.io.ship_valid.poke(true.B)
@@ -119,6 +140,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.ship_out.src.y.expect( 2.U )
             dut.io.ship_out.dst.x.expect( 5.U )
             dut.io.ship_out.dst.y.expect( 6.U )
+            dut.io.consume_new_ship.expect( false.B )
 
             // case other:
             dut.io.ship.ship_class.poke(1.U)
@@ -130,6 +152,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.ship_out.src.y.expect( 2.U )
             dut.io.ship_out.dst.x.expect( 5.U )
             dut.io.ship_out.dst.y.expect( 6.U )
+            dut.io.consume_new_ship.expect( false.B )
 
             // if ship is valid and it's friendly but not owned by me, it gets routed back to it's source
 
@@ -177,13 +200,87 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.ship_out.scout_data.loc.y.expect(2.U)
             dut.io.ship_out.scout_data.side.expect(0.U)
             dut.io.ship_out.scout_data.owned.expect(true.B)
+            dut.io.consume_new_ship.expect( false.B )
 
             // case other:
             dut.io.ship.ship_class.poke(1.U)
             dut.io.do_damage.expect(true.B)
             dut.io.ship_out_valid.expect( false.B )
+            dut.io.consume_new_ship.expect( false.B )
             
+            // case nothing is coming in, but the newly created ship wants to go out:
+            dut.io.ship.src.x.poke( 3.U )
+            dut.io.ship.src.y.poke( 4.U )
+            dut.io.ship.dst.x.poke( 1.U )
+            dut.io.ship.dst.y.poke( 2.U )
+            dut.io.ship.general_id.side.poke( 0.U )
+            dut.io.ship.general_id.general_owned.poke( 0.U )
+            dut.io.ship.ship_class.poke( 0.U )
+            dut.io.ship.fleet_hp.poke( 0.U )
+            dut.io.ship.scout_data.data_valid.poke( false.B )
+            dut.io.ship.scout_data.loc.x.poke( 0.U )
+            dut.io.ship.scout_data.loc.y.poke( 0.U )
+            dut.io.ship.scout_data.side.poke( 0.U )
+
+            dut.io.ship_valid.poke( false.B )
+
+            dut.io.new_ship.src.x.poke( 0.U )
+            dut.io.new_ship.src.y.poke( 0.U )
+            dut.io.new_ship.dst.x.poke( 0.U )
+            dut.io.new_ship.dst.y.poke( 0.U )
+            dut.io.new_ship.general_id.side.poke( 0.U )
+            dut.io.new_ship.general_id.general_owned.poke( 1.U )
+            dut.io.new_ship.ship_class.poke( 2.U )
+            dut.io.new_ship.fleet_hp.poke( 5.U )
+            dut.io.new_ship.scout_data.data_valid.poke( false.B )
+            dut.io.new_ship.scout_data.loc.x.poke( 0.U )
+            dut.io.new_ship.scout_data.loc.y.poke( 0.U )
+            dut.io.new_ship.scout_data.side.poke( 0.U )
+
+            dut.io.new_ship_valid.poke( true.B )
+
+            dut.io.ship_out_valid.expect( true.B )
+            dut.io.ship_out.scout_data.data_valid.expect(false.B) 
+            dut.io.ship_out.src.x.expect( 1.U )
+            dut.io.ship_out.src.y.expect( 2.U )
+            dut.io.ship_out.dst.x.expect( 5.U )
+            dut.io.ship_out.dst.y.expect( 6.U )
+            dut.io.ship_out.general_id.side.expect( 0.U )
+            dut.io.ship_out.general_id.general_owned.expect( 1.U )
+            dut.io.ship_out.ship_class.expect( 2.U )
+            dut.io.ship_out.fleet_hp.expect( 5.U )
             
+            dut.io.consume_new_ship.expect( true.B )
+
+            // case something is coming in, but the newly created ship wants to go out:
+
+            dut.io.ship.src.x.poke( 3.U )
+            dut.io.ship.src.y.poke( 4.U )
+            dut.io.ship.dst.x.poke( 1.U )
+            dut.io.ship.dst.y.poke( 2.U )
+            dut.io.ship.general_id.side.poke( 0.U )
+            dut.io.ship.general_id.general_owned.poke( 2.U )
+            dut.io.ship.ship_class.poke( 1.U )
+            dut.io.ship.fleet_hp.poke( 10.U )
+            dut.io.ship.scout_data.data_valid.poke( false.B )
+            dut.io.ship.scout_data.loc.x.poke( 0.U )
+            dut.io.ship.scout_data.loc.y.poke( 0.U )
+            dut.io.ship.scout_data.side.poke( 0.U )
+
+            dut.io.ship_valid.poke( true.B )
+
+            dut.io.ship_out_valid.expect( true.B )
+            dut.io.ship_out.scout_data.data_valid.expect(false.B) 
+            dut.io.ship_out.src.x.expect( 1.U )
+            dut.io.ship_out.src.y.expect( 2.U )
+            dut.io.ship_out.dst.x.expect( 3.U )
+            dut.io.ship_out.dst.y.expect( 4.U )
+            dut.io.ship_out.general_id.side.expect( 0.U )
+            dut.io.ship_out.general_id.general_owned.expect( 2.U )
+            dut.io.ship_out.ship_class.expect( 1.U )
+            dut.io.ship_out.fleet_hp.expect( 10.U )
+            
+            dut.io.consume_new_ship.expect( false.B )
         }
     }
 

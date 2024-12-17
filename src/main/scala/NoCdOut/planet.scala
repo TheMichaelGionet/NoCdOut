@@ -64,41 +64,44 @@ class ShipEventHandler( params : GameParameters, x_pos : Int, y_pos : Int ) exte
 {
     val io = IO( new Bundle
     {
-        val ship            = Input( new Ship( params ) )
-        val ship_valid      = Input( Bool() )
+        val ship                = Input( new Ship( params ) )
+        val ship_valid          = Input( Bool() )
 
-        val new_ship        = Input( new Ship( params ) )
-        val new_ship_valid  = Input( Bool() )
+        val new_ship            = Input( new Ship( params ) )
+        val new_ship_valid      = Input( Bool() )
         
-        val new_route       = Input( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
+        val new_route           = Input( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
         
-        val is_owned        = Input( Bool() ) // the planet, that is
-        val owner           = Input( new GeneralID( params.num_players_len, params.num_generals_len ) )
+        val is_owned            = Input( Bool() ) // the planet, that is
+        val owner               = Input( new GeneralID( params.num_players_len, params.num_generals_len ) )
         
-        val ship_out        = Output( new Ship( params ) )
-        val ship_out_valid  = Output( Bool() )
+        val ship_out            = Output( new Ship( params ) )
+        val ship_out_valid      = Output( Bool() )
         
-        val do_damage       = Output( Bool() )
+        val do_damage           = Output( Bool() )
+        val consume_new_ship    = Output( Bool() )
     } )
 
     val here = Wire( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
     here.x  := x_pos.U
     here.y  := y_pos.U
 
-    val ship_enemy      = !io.is_owned || ( io.ship.general_id.side =/= io.owner.side )
-    val i_own_the_ship  = io.ship.general_id.general_owned === io.owner.general_owned && io.ship.general_id.side === io.owner.side
+    val ship_enemy              = !io.is_owned || ( io.ship.general_id.side =/= io.owner.side )
+    val i_own_the_ship          = io.ship.general_id.general_owned === io.owner.general_owned && io.ship.general_id.side === io.owner.side
 
-    val is_scout        = io.ship.ship_class    === ShipClasses.scout.U
+    val is_scout                = io.ship.ship_class    === ShipClasses.scout.U
     
     // default to internal, but prioritize external.
     // Reroute whenever it's friendly, or it's an enemy scout.
-    val ship_multiplex  = ( io.ship_valid && ( !ship_enemy || is_scout ) )
+    val ship_multiplex          = ( io.ship_valid && ( !ship_enemy || is_scout ) )
     
-    io.do_damage        := ship_enemy && !is_scout && io.ship_valid
+    io.do_damage                := ship_enemy && !is_scout && io.ship_valid
     
-    io.ship_out_valid   := io.new_ship_valid    || ship_multiplex
+    io.ship_out_valid           := io.new_ship_valid    || ship_multiplex
     
-    val multiplexed_ship    = Mux( ship_multiplex, io.ship, io.new_ship )
+    val multiplexed_ship        = Mux( ship_multiplex, io.ship, io.new_ship )
+    
+    io.consume_new_ship         := !ship_multiplex && io.new_ship_valid
     
     io.ship_out.general_id      := multiplexed_ship.general_id
     io.ship_out.ship_class      := multiplexed_ship.ship_class
@@ -370,96 +373,87 @@ class GeneralMux( params : GameParameters, general_builders : List[GeneralBuilde
 /*
 class Planet(   resource_production_rate    : Int, 
                 max_resources               : Int, 
-                max_turret_health           : Int, 
-                turret_damage_per_hp        : Int, 
+
                 params                      : GameParameters, 
+
                 general_builders            : List[GeneralBuilder],
-                default_team                : Int, // -1 - none, 0 - player, 1 - enemy1
+                general_ids                 : List[Int],
+
+                default_team                : Int,
+                owned_by_default            : Boolean,
+
                 buffer_depth                : Int,
                 x_pos                       : Int, // the position on the NoC. 
                 y_pos                       : Int
                 ) extends Sector( params, buffer_depth )
+    
+
 {
-    val is_owned        = RegInit( (default_team == -1).B )
-    val owner           = RegInit( if( default_team == -1 ) 0.U( params.num_players_len.W ) else default_team.U( params.num_players_len.W ) )
-    
-    val general_DFAs    = general_builders.map{ x => Module( x() ) }
+    // State stuff
+    val is_owned            = RegInit( owned_by_default.B )
+    val owned_by            = RegInit( default_team.U( params.num_players_len.W ) )
 
-    val new_ship        = Reg( new Ship( params ) )
-    val new_ship_valid  = RegInit( false.B )
-    
-    // IO to control the planet behavior
-    
-    val ship_it_sees    = Wire( new Ship( params ) )
-    val ship_valid      = Wire( Bool() )
-    
-    val resources       = RegInit( 0.U( params.max_resource_val_len.W ) )
-    val limit_resources = RegInit( max_resources.U( params.max_resource_val_len.W ) )
-    
-    val turret_hp       = Reg( UInt( params.max_turret_hp_len.W ) )
-    val limit_turret_hp = Reg( UInt( params.max_turret_hp_len.W ) )
-    
-    val under_attack    = Wire( Bool() )
-    
-    
-    val do_build_ship   = Wire( Bool() )
-    val which_ship      = Wire( UInt( params.num_ship_classes_len.W ) )
-    val how_many_ships  = Wire( UInt( params.max_fleet_hp_len.W ) )
-    
-    val command_ship    = Wire( Bool() )
-    val command_where   = Wire( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
-    
-    val add_turret_hp   = Wire( Bool() )
-    
-    ship_it_sees        := input_buffer.io.out.bits
-    ship_valid          := input_buffer.io.out.valid
-    input_buffer_io.out.ready   := true.B // MUST process as it comes up. 
-    
-    
-    // IO to/from each general
-    
-    val do_build_ship_vec   = Wire( Vec( params.num_players, Bool() ) )
-    val which_ship_vec      = Wire( Vec( params.num_players, UInt( params.num_ship_classes_len.W ) ) )
-    val how_many_ships_vec  = Wire( Vec( params.num_players, UInt( params.max_fleet_hp_len.W ) ) )
-    
-    val command_ship_vec    = Wire( Vec( params.num_players, Bool() ) )
-    val command_where_vec   = Wire( Vec( params.num_players, new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) ) )
-    
-    val add_turret_hp_vec   = Wire( Vec( params.num_players, Bool() ) )
-    
-    for( i <- 0 until params.num_players )
-    {
-        generals(i).io.ship_it_sees     := ship_it_sees
-        generals(i).io.ship_valid       := ship_valid
-        generals(i).io.resources        := resources
-        generals(i).io.limit_resources  := limit_resources
-        generals(i).io.turret_hp        := turret_hp
-        generals(i).io.limit_turret_hp  := limit_turret_hp
-        generals(i).io.under_attack     := under_attack
+    val resources           = RegInit( 0.U( params.max_resource_val_len.W ) )
+    val limit_resources     = RegInit( max_resources.U( params.max_resource_val_len.W ) )
+    val resource_prod       = RegInit( resource_production_rate.U( params.max_resource_val_len.W ) )
 
-        do_build_ship_vec(i)            := generals(i).io.do_build_ship
-        which_ship_vec(i)               := generals(i).io.which_ship
-        how_many_ships_vec(i)           := generals(i).io.how_many_ships
-        command_ship_vec(i)             := generals(i).io.command_ship
-        command_where_vec(i)            := generals(i).io.command_where
-        add_turret_hp_vec(i)            := generals(i).io.add_turret_hp
-    }
-    
-    // Multiplex based on who has control
-    
-    when( is_owned )
+    val turret_hp           = RegInit( 0.U( max_turret_hp_len.W ) )
+
+    val ship_garrison       = Reg( new Ship( params ) )
+    val garrison_valid      = RegInit( false.B )
+
+    // Big components
+
+    val ship_event_handler  = Module( new ShipEventHandler( params, x_pos, y_pos ) )
+
+    val combat_handler      = Module( new CombatHandler( params ) )
+
+    val economy_handler     = Module( new EconomyHandler( params ) )
+
+    val general_mux         = Module( new GeneralMux( params, general_builders, general_ids ) )
+
+    // Wiring
+
+    val preserve_ships  = false
+    if( preserve_ships )
     {
-        
+        input_buffer.io.out.ready   := output_buffer.io.in.ready
     }
-    .otherwise
+    else
     {
-        do_build_ship                   := false.B
-        which_ship                      := 0.U
-        how_many_ships                  := 0.U
-        
-        command_ship                    := true.B
-        when(  )
+        // Sometimes the output buffer might not be able to accept,
+        // but now the game will not deadlock.
+        // So ships can just get destroyed sometimes, and that can be okay. 
+        input_buffer.io.out.ready   := true.B
     }
+
+    general_mux.io.ship_it_sees     := input_buffer.io.out.bits
+    general_mux.io.ship_valid       := input_buffer.io.out.valid
+    general_mux.io.resources        := resources
+    general_mux.io.limit_resources  := limit_resources
+    general_mux.io.turret_hp        := turret_hp
+    general_mux.io.limit_turret_hp  := params.max_turret_hp.U
+    general_mux.io.under_attack     := combat_handler.io.do_damage
+    general_mux.io.ship_was_built   := garrison_valid
+    general_mux.io.is_owned         := is_owned
+    general_mux.io.owned_by         := owned_by
+    
+    economy_handler.io.do_build_ship            := general_mux.io.do_build_ship
+    economy_handler.io.which_ship               := general_mux.io.which_ship
+    economy_handler.io.how_many_ships           := general_mux.io.how_many_ships
+    economy_handler.io.add_turret_hp            := general_mux.io.add_turret_hp
+    economy_handler.io.turret_hp_amount         := general_mux.io.how_much_turret_hp
+    economy_handler.io.general_id.side          := owned_by
+    economy_handler.io.general_id.general_owned := general_mux.io.general_id
+    economy_handler.io.resources                := resources
+    economy_handler.io.max_resources            := limit_resources
+    economy_handler.io.add_resources            := resource_prod
+    economy_handler.io.ship_backpressure        := ???
+    when( economy_handler.io.ship_valid )
+    {
+        ship_garrison   := economy_handler.io.ship
+    }
+
+    
 }
 */
-
