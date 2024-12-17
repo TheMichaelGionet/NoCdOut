@@ -39,6 +39,27 @@ abstract class Sector( params : GameParameters, buffer_depth : Int ) extends Mod
     output_buffer.io.out.ready  := !io.out.bp
 }
 
+class EmptySpace( params : GameParameters, buffer_depth : Int ) extends Sector( params, buffer_depth )
+{
+    output_buffer.io.in.valid   := input_buffer.io.out.valid
+    input_buffer.io.out.ready   := output_buffer.io.in.ready
+    
+    /*
+        val src             = Output(new Coordinates( params.noc_x_size_len, params.noc_y_size_len ))
+        val dst             = Output(new Coordinates( params.noc_x_size_len, params.noc_y_size_len ))
+        val general_id      = Output(new GeneralID( params.num_players_len, params.num_generals_len ))
+        val ship_class      = Output(UInt( params.num_ship_classes_len.W ))
+        val fleet_hp        = Output(UInt( params.max_fleet_hp_len.W ))
+        val scout_data      = Output(new ScoutData( params.noc_x_size_len, params.noc_y_size_len, params.num_players_len ))
+    */
+    output_buffer.io.in.bits.dst            := input_buffer.io.out.bits.src
+    output_buffer.io.in.bits.src            := input_buffer.io.out.bits.dst
+    output_buffer.io.in.bits.general_id     := input_buffer.io.out.bits.general_id
+    output_buffer.io.in.bits.ship_class     := input_buffer.io.out.bits.ship_class
+    output_buffer.io.in.bits.fleet_hp       := input_buffer.io.out.bits.fleet_hp
+    output_buffer.io.in.bits.scout_data     := input_buffer.io.out.bits.scout_data
+}
+
 class ShipEventHandler( params : GameParameters, x_pos : Int, y_pos : Int ) extends Module
 {
     val io = IO( new Bundle
