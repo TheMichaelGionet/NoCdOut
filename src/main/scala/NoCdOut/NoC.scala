@@ -7,6 +7,7 @@ import chisel3.util._
 
 import common._
 import ships._
+import planet.SectorBundle
 
 class InPerSide(params: GameParameters) extends Bundle {
     val in_n = Flipped(Decoupled(new Ship(params)))//full bidirectionality!
@@ -582,7 +583,11 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
 
 }
 
+
 class NocBuilder(params: GameParameters) extends Module{
+    val io = IO(new Bundle{
+        val planets = Vec(params.noc_x_size, Vec(params.noc_y_size, new SectorBundle(params)))
+})
 
     val switches = Seq.tabulate(params.noc_x_size, params.noc_y_size)((x, y) => Module(new NocSwitch(params, x, y)))
 
@@ -605,4 +610,15 @@ class NocBuilder(params: GameParameters) extends Module{
     }
 
     //planet wiring harness?
+    for (x <- 0 until params.noc_x_size){
+        for (y <- 0 until params.noc_y_size){
+            switches(x)(y).io.in_p.bits := io.planets(x)(y).out.ship
+            switches(x)(y).io.in_p.valid := io.planets(x)(y).out.ship_valid
+            io.planets(x)(y).out.bp := switches(x)(y).io.in_p.ready
+
+            io.planets(x)(y).in.ship := switches(x)(y).io.out.out_p.bits
+            io.planets(x)(y).in.ship_valid := switches(x)(y).io.out.out_p.valid
+            switches(x)(y).io.out.out_p.ready := io.planets(x)(y).in.bp
+        }
+    }
 }
