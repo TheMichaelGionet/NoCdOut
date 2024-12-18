@@ -614,11 +614,11 @@ class NocBuilder(params: GameParameters) extends Module{
         for (y <- 0 until params.noc_y_size){
             switches(x)(y).io.in_p.bits := io.planets(x)(y).out.ship
             switches(x)(y).io.in_p.valid := io.planets(x)(y).out.ship_valid
-            io.planets(x)(y).out.bp := switches(x)(y).io.in_p.ready
+            io.planets(x)(y).out.bp := !switches(x)(y).io.in_p.ready
 
             io.planets(x)(y).in.ship := switches(x)(y).io.out.out_p.bits
             io.planets(x)(y).in.ship_valid := switches(x)(y).io.out.out_p.valid
-            switches(x)(y).io.out.out_p.ready := io.planets(x)(y).in.bp
+            switches(x)(y).io.out.out_p.ready := !io.planets(x)(y).in.bp
         }
     }
 }
