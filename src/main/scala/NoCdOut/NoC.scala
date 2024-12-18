@@ -301,7 +301,7 @@ class FightPerSide(params: GameParameters) extends Module {
     }
     
     for (i <- 0 until params.num_players){
-        io.ins(i).ready := true.B
+        io.ins(i).ready := io.out.ready
     }
     //the idea is to take the strongest ship and throw everything else against it
     //guaranteed to only have one ship per side here
@@ -317,11 +317,11 @@ class FightGlobal(params: GameParameters) extends Module{
 
         val out = new OutPerSide(params)
     })
-    io.in_n.ready := true.B //combat is ALWAYS ready B)
-    io.in_s.ready := true.B
-    io.in_w.ready := true.B
-    io.in_e.ready := true.B
-    io.in_p.ready := true.B
+    io.in_n.ready := io.out.out_n.ready //combat is ALWAYS ready B)
+    io.in_s.ready := io.out.out_s.ready
+    io.in_w.ready := io.out.out_w.ready
+    io.in_e.ready := io.out.out_e.ready
+    io.in_p.ready := io.out.out_p.ready
 
     val ins = VecInit(Seq(io.in_n, io.in_s, io.in_w, io.in_e, io.in_p)) // construct a seq or a vec or whatever to use the same logic as above
 
@@ -352,27 +352,31 @@ class FightGlobal(params: GameParameters) extends Module{
 
     val MAD = ((PopCount(who_is_max) =/= 1.U))// || (ins(max_index).bits.fleet_hp <= second_max_strength)) //if more than 1 max value (or no valid ships), everything blows each other up :)
 
-    var remaining_hp = hp_per_side(max_index)// some disgusting thing to keep track of HP divvying
+    //var remaining_hp = hp_per_side(max_index)// some disgusting thing to keep track of HP divvying
     val winning_hps = ins.map{case (ship : DecoupledIO[Ship]) => Mux(ship.bits.general_id.side === max_index, ship.bits.fleet_hp, 0.U)} // incl in list if winning hp
 
     //prio list: P/N/S/W/E
     val p_hp = Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4)) > second_max_strength, //did we live?
-        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4) - second_max_strength) > io.in_p.bits.fleet_hp, //if we have more hp left than just us, use just us
-         io.in_p.bits.fleet_hp, winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4)- second_max_strength), 0.U)//otherwise use the new value
+        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4) - second_max_strength) > winning_hps(4), //if we have more hp left than just us, use just us
+         winning_hps(4), winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4) - second_max_strength), 0.U)//otherwise use the new value
     val n_hp = Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3)) > second_max_strength, 
-        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_n.bits.fleet_hp,
-         io.in_n.bits.fleet_hp, winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+        Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > winning_hps(0),
+         winning_hps(0), winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
     val s_hp = Mux((winning_hps(1) + winning_hps(2) + winning_hps(3)) > second_max_strength, 
-        Mux((winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_s.bits.fleet_hp,
-         io.in_s.bits.fleet_hp, winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+        Mux((winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength) > winning_hps(1),
+         winning_hps(1), winning_hps(1) + winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
     val w_hp = Mux((winning_hps(2) + winning_hps(3)) > second_max_strength, 
-        Mux((winning_hps(2) + winning_hps(3) - second_max_strength) > io.in_w.bits.fleet_hp,
-         io.in_w.bits.fleet_hp, winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
+        Mux((winning_hps(2) + winning_hps(3) - second_max_strength) > winning_hps(2),
+         winning_hps(2), winning_hps(2) + winning_hps(3) - second_max_strength), 0.U)
     val e_hp = Mux((winning_hps(3)) > second_max_strength, 
-        Mux((winning_hps(3) - second_max_strength) > io.in_e.bits.fleet_hp,
-         io.in_e.bits.fleet_hp, winning_hps(3) - second_max_strength), 0.U)
+        Mux((winning_hps(3) - second_max_strength) > winning_hps(3),
+         winning_hps(3), winning_hps(3) - second_max_strength), 0.U)
 
-    io.out := DontCare
+    io.out.out_n <> io.in_n 
+    io.out.out_s <> io.in_s 
+    io.out.out_w <> io.in_w 
+    io.out.out_e <> io.in_e 
+    io.out.out_p <> io.in_p
 
     io.out.out_n.bits.fleet_hp := n_hp 
     io.out.out_s.bits.fleet_hp := s_hp 
@@ -438,7 +442,47 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     }
     io.in_p.ready := planet_in_ready_fanout.toSeq.reduce(_ & _) //if ANY readys are set to 0, then planet is not ready (a packet is held in the buffer)
 
-    val vc_out_reg = RegInit(Vec(params.num_players, new OutPerSide(params)), Vec(params.num_players, 
+    val fight_n = Module(new FightPerSide(params))
+    val fight_s = Module(new FightPerSide(params))
+    val fight_w = Module(new FightPerSide(params))
+    val fight_e = Module(new FightPerSide(params))
+    val fight_p = Module(new FightPerSide(params))
+    // connection to FightPerSides from vc_out_wires
+    for (i <- 0 until params.num_players){
+        fight_n.io.ins(i) <> vc_out_wire(i).out_n
+        fight_s.io.ins(i) <> vc_out_wire(i).out_s 
+        fight_w.io.ins(i) <> vc_out_wire(i).out_w 
+        fight_e.io.ins(i) <> vc_out_wire(i).out_e 
+        fight_p.io.ins(i) <> vc_out_wire(i).out_p
+    }
+
+    val fight_global = Module(new FightGlobal(params))
+    fight_global.io.in_n <> fight_n.io.out
+    fight_global.io.in_s <> fight_s.io.out 
+    fight_global.io.in_w <> fight_w.io.out 
+    fight_global.io.in_e <> fight_e.io.out 
+    fight_global.io.in_p <> fight_p.io.out
+
+    // val vc_out_reg = RegInit(Vec(params.num_players, new OutPerSide(params)), Vec(params.num_players, 
+    //     new OutPerSide(params).Lit(
+    //         _.out_n.bits -> DontCare,
+    //         _.out_s.bits -> DontCare,
+    //         _.out_w.bits -> DontCare,
+    //         _.out_e.bits -> DontCare,
+    //         _.out_p.bits -> DontCare,
+    //         _.out_n.ready -> true.B ,
+    //         _.out_s.ready -> true.B,
+    //         _.out_e.ready -> true.B,
+    //         _.out_w.ready -> true.B,
+    //         _.out_p.ready -> true.B,
+    //         _.out_n.valid -> false.B,
+    //         _.out_s.valid -> false.B,
+    //         _.out_e.valid -> false.B,
+    //         _.out_w.valid -> false.B,
+    //         _.out_p.valid -> false.B
+    //         ))) // init to a safe null state
+
+    val out_reg = RegInit(new OutPerSide(params), 
         new OutPerSide(params).Lit(
             _.out_n.bits -> DontCare,
             _.out_s.bits -> DontCare,
@@ -455,8 +499,13 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
             _.out_e.valid -> false.B,
             _.out_w.valid -> false.B,
             _.out_p.valid -> false.B
-            ))) // init to a safe null state
+            ))
     
     //first we fight per side, then per switch
+    out_reg.out_n <> fight_global.io.out.out_n 
+    out_reg.out_s <> fight_global.io.out.out_s 
+    out_reg.out_w <> fight_global.io.out.out_w
+    out_reg.out_e <> fight_global.io.out.out_e 
+    out_reg.out_p <> fight_global.io.out.out_p
 
 }
