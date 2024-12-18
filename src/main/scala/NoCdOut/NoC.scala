@@ -46,9 +46,9 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     // conflict resolution
     val n2s = n4s && io.packets_out.out_s.ready // deny packet transfer when output VC is BP'd
     val w2e = w4e && io.packets_out.out_e.ready
-    val n2p = n4p // give prio to N exiting NoC
+    val n2p = n4p && io.packets_out.out_p.ready // give prio to N exiting NoC
     val w2s = w4s && !n2s && io.packets_out.out_s.ready // w loses to n
-    val w2p = w4p && !n2p
+    val w2p = w4p && !n2p && io.packets_out.out_p.ready
     val p2e = p4e && !w2e && io.packets_out.out_e.ready
 
     //second set of intents + conflicts
@@ -64,9 +64,9 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     // conflict resolution
     val s2n = s4n && io.packets_out.out_n.ready // no conflicts here
     val e2w = e4w && io.packets_out.out_w.ready
-    val s2p = s4p && !w2p && !n2p // give prio to s exiting NoC, this noc lower prio
+    val s2p = s4p && !w2p && !n2p && io.packets_out.out_p.ready // give prio to s exiting NoC, this noc lower prio
     val e2n = e4n && !s2n && io.packets_out.out_n.ready // e loses to s
-    val e2p = e4p && !s2p && !n2p && !w2p // this noc lower prio output
+    val e2p = e4p && !s2p && !n2p && !w2p && io.packets_out.out_p.ready // this noc lower prio output
     val p2w = p4w && !e2w && io.packets_out.out_w.ready
 
     // extra turns for horiz-first routing
@@ -80,7 +80,7 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     val p2n = p4n && !e2n && !s2n && io.packets_out.out_n.ready && !w2n // simplify this signal for better synth
     
     // deprioritize p2p as much as possible
-    val p2p = p4p && !n2p && !e2p && !w2p && !s2p
+    val p2p = p4p && !n2p && !e2p && !w2p && !s2p && io.packets_out.out_p.ready
 
     val out_s_wires = Wire(new Ship(params))
     out_s_wires := DontCare
@@ -580,4 +580,29 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     out_p_ready_reg := io.out.out_p.ready 
 
 
+}
+
+class NocBuilder(params: GameParameters) extends Module{
+
+    val switches = Seq.tabulate(params.noc_x_size, params.noc_y_size)((x, y) => Module(new NocSwitch(params, x, y)))
+
+    for (x <- 1 until (params.noc_x_size-1)){ //inner grid wiring
+        
+        for (y <- 1 until (params.noc_y_size-1)){
+            switches(x)(y).io.in.in_n <> switches(x)(y+1).io.out.out_s 
+            switches(x)(y).io.in.in_s <> switches(x)(y-1).io.out.out_n 
+            switches(x)(y).io.in.in_w <> switches(x-1)(y).io.out.out_e 
+            switches(x)(y).io.in.in_e <> switches(x+1)(y).io.out.out_w
+        }
+    }
+    for(y <- 0 until params.noc_y_size){
+        switches(0)(y).io.in.in_w <> switches(0)(y).io.out.out_w //feedback edges on edge of mesh
+        switches(params.noc_x_size)(y).io.in.in_e <> switches(params.noc_x_size)(y).io.out.out_e
+    }
+    for (x <- 0 until params.noc_x_size){
+        switches(x)(0).io.in.in_s <> switches(x)(0).io.out.out_s 
+        switches(x)(params.noc_y_size).io.in.in_n <> switches(x)(params.noc_y_size).io.out.out_n
+    }
+
+    //planet wiring harness?
 }
