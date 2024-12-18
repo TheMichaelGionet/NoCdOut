@@ -108,8 +108,8 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
     
     val LFSR            = Module( new lfsr16( List[UInt]( 0.U, 1.U, 0.U, 1.U, 0.U, 1.U, 0.U, 1.U, 0.U, 1.U, 0.U, 1.U, 0.U, 1.U, 0.U, 1.U ) ) )
     
-    val x_loc           = RegInit( 0x3e.U( params.noc_x_size_len.W ) )
-    val y_loc           = RegInit( 0x1f.U( params.noc_y_size_len.W ) )
+    val x_loc           = RegInit( 0x3.U( params.noc_x_size_len.W ) )
+    val y_loc           = RegInit( 0x1.U( params.noc_y_size_len.W ) )
     
     x_loc := x_loc << 1 | ( LFSR.io.out ^ x_loc( params.noc_x_size_len-1 ) )
     y_loc := y_loc << 1 | ( 1.U ^ LFSR.io.out ^ y_loc( params.noc_y_size_len-1 ) )

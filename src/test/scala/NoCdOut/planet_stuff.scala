@@ -799,10 +799,11 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.state_observation.turret_hp.expect( 0.U )
             dut.state_observation.garrison_valid.expect( false.B )
 
-            println( "cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
+            //println( "cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
 
             var cycle = 0
 
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -811,6 +812,7 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
 
             //println(  "" + cycle + 
             //            ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
@@ -823,6 +825,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.clock.step()
             cycle += 1
 
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -831,6 +834,7 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
             
             //println(  "" + cycle + 
             //            ", dbg inc turret amnt " + dut.debug_observables.econ_inc_turret_hp_out.peekValue().asBigInt + 
@@ -844,6 +848,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.clock.step()
             cycle += 1
 
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -852,6 +857,7 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
 
             dut.clock.step()
                 cycle += 1
@@ -868,7 +874,7 @@ class planet_test extends AnyFreeSpec with Matchers {
 
             while( cycle < 30 )
             {
-                
+                /*
                 println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -877,10 +883,11 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+                */
 
                 if( dut.io.out.ship_valid.peekValue().asBigInt == 1 )
                 {
-                    println( "ship out at cycle " + cycle )
+                    //println( "ship out at cycle " + cycle )
                     //dut.io.out.ship_valid.expect( true.B )
                     dut.io.out.ship.src.x.expect( 1.U )
                     dut.io.out.ship.src.y.expect( 3.U )
@@ -906,6 +913,7 @@ class planet_test extends AnyFreeSpec with Matchers {
             dut.io.in.ship.general_id.side.poke( 1.U )
             dut.io.in.ship_valid.poke( true.B )
             
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -914,11 +922,13 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
             
             dut.clock.step()
             cycle += 1
             dut.io.in.ship_valid.poke( false.B )
             
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -927,12 +937,14 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
             
             dut.clock.step()
             cycle += 1
             
             dut.state_observation.owned_by.expect( 1.U )
             
+            /*
             println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -941,10 +953,12 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+            */
 
             while( cycle < 60 )
             {
                 
+                /*
                 println(  "" + cycle + 
                     ", " + dut.state_observation.is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.owned_by.peekValue().asBigInt + 
@@ -953,10 +967,11 @@ class planet_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.garrison_valid.peekValue().asBigInt )
+                */
 
                 if( dut.io.out.ship_valid.peekValue().asBigInt == 1 )
                 {
-                    println( "ship out at cycle " + cycle )
+                    //println( "ship out at cycle " + cycle )
                     //dut.io.out.ship_valid.expect( true.B )
                     dut.io.out.ship.src.x.expect( 1.U )
                     dut.io.out.ship.src.y.expect( 3.U )
