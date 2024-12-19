@@ -323,6 +323,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             def print_planet_map() = 
             {
+                var list_of_other_events    = List[String]()
                 for( y <- 0 until params.noc_y_size )
                 {
                     var le_string = ""
@@ -336,6 +337,14 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                             if( ( dut.io.le_vec(x)(y).in.ship_valid.peekValue.asBigInt == 1 ) || ( dut.io.le_vec(x)(y).out.ship_valid.peekValue.asBigInt == 1 ) )
                             {
                                 le_string   += "{"
+                                if( dut.io.le_vec(x)(y).in.ship_valid.peekValue.asBigInt == 1 )
+                                {
+                                    list_of_other_events = list_of_other_events    :+ ( "ship entering planet at " + x + ", " + y + " is backpressured? " + dut.io.le_vec(x)(y).in.bp.peekValue.asBigInt.toInt )
+                                }
+                                if( dut.io.le_vec(x)(y).out.ship_valid.peekValue.asBigInt == 1 )
+                                {
+                                    list_of_other_events = list_of_other_events    :+ ( "ship leaving planet at " + x + ", " + y + " is backpressured? " + dut.io.le_vec(x)(y).out.bp.peekValue.asBigInt.toInt )
+                                }
                             }
                             else
                             {
@@ -359,6 +368,8 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                             if( dut.io.le_vec(x)(y).in.ship_valid.peekValue.asBigInt == 1 )
                             {
                                 le_string   += ">"
+
+                                list_of_other_events = list_of_other_events    :+ ( "ship entering empty space at " + x + ", " + y + " is backpressured? " + dut.io.le_vec(x)(y).in.bp.peekValue.asBigInt.toInt )
                             }
                             else
                             {
@@ -368,6 +379,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                             if( dut.io.le_vec(x)(y).out.ship_valid.peekValue.asBigInt == 1 )
                             {
                                 le_string   += ".>"
+                                list_of_other_events = list_of_other_events    :+ ( "ship exiting empty space at " + x + ", " + y + " is backpressured? " + dut.io.le_vec(x)(y).out.bp.peekValue.asBigInt.toInt )
                             }
                             else
                             {
@@ -377,6 +389,14 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                         le_string += get_noc_state_character( x, y )
                     }
                     println( le_string )
+                }
+                val print_other_events = true
+                if( print_other_events )
+                {
+                    for( ev <- list_of_other_events )
+                    {
+                        println( ev )
+                    }
                 }
                 println( "" )
             }
