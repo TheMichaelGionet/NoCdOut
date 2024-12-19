@@ -359,7 +359,7 @@ class FightGlobal(params: GameParameters) extends Module{
     val MAD = ((PopCount(who_is_max) =/= 1.U))// || (ins(max_index).bits.fleet_hp <= second_max_strength)) //if more than 1 max value (or no valid ships), everything blows each other up :)
 
     //var remaining_hp = hp_per_side(max_index)// some disgusting thing to keep track of HP divvying
-    val winning_hps = ins.map{case (ship : DecoupledIO[Ship]) => Mux(ship.bits.general_id.side === max_index, ship.bits.fleet_hp, 0.U)} // incl in list if winning hp
+    val winning_hps = ins.map{case (ship : DecoupledIO[Ship]) => Mux((ship.bits.general_id.side === max_index) && ship.valid, ship.bits.fleet_hp, 0.U)} // incl in list if winning hp
 
     //prio list: P/N/S/W/E
     val p_hp = Mux((winning_hps(0) + winning_hps(1) + winning_hps(2) + winning_hps(3) + winning_hps(4)) > second_max_strength, //did we live?
