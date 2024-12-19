@@ -591,15 +591,35 @@ class NocBuilder(params: GameParameters) extends Module{
 
     val switches = Seq.tabulate(params.noc_x_size, params.noc_y_size)((x, y) => Module(new NocSwitch(params, x, y)))
 
-    for (x <- 1 until (params.noc_x_size-1)){ //inner grid wiring
-        
-        for (y <- 1 until (params.noc_y_size-1)){
+    //for (x <- 1 until (params.noc_x_size-1)){ //inner grid wiring
+    //    
+    //    for (y <- 1 until (params.noc_y_size-1)){
+    //        switches(x)(y).io.in.in_n <> switches(x)(y+1).io.out.out_s 
+    //        switches(x)(y).io.in.in_s <> switches(x)(y-1).io.out.out_n 
+    //        switches(x)(y).io.in.in_w <> switches(x-1)(y).io.out.out_e 
+    //        switches(x)(y).io.in.in_e <> switches(x+1)(y).io.out.out_w
+    //    }
+    //}
+    
+    for( x <- 0 until (params.noc_x_size) )
+    {
+        for( y <- 0 until (params.noc_y_size-1) )
+        {
             switches(x)(y).io.in.in_n <> switches(x)(y+1).io.out.out_s 
-            switches(x)(y).io.in.in_s <> switches(x)(y-1).io.out.out_n 
-            switches(x)(y).io.in.in_w <> switches(x-1)(y).io.out.out_e 
+            switches(x)(y+1).io.in.in_s <> switches(x)(y).io.out.out_n 
+        }
+    }
+
+    for( x <- 0 until (params.noc_x_size-1) )
+    {
+        for( y <- 0 until (params.noc_y_size) )
+        {
+            switches(x+1)(y).io.in.in_w <> switches(x)(y).io.out.out_e 
             switches(x)(y).io.in.in_e <> switches(x+1)(y).io.out.out_w
         }
     }
+
+
     for(y <- 0 until params.noc_y_size){
         switches(0)(y).io.in.in_w <> switches(0)(y).io.out.out_w //feedback edges on edge of mesh
         switches(params.noc_x_size-1)(y).io.in.in_e <> switches(params.noc_x_size-1)(y).io.out.out_e
@@ -615,13 +635,15 @@ class NocBuilder(params: GameParameters) extends Module{
             // in with in, out with out.
             // when mashing NocBuilder with levelbuilder
             // it will be in with out, out with in. 
-            switches(x)(y).io.in_p.bits := io.planets(x)(y).in.ship
-            switches(x)(y).io.in_p.valid := io.planets(x)(y).in.ship_valid
-            io.planets(x)(y).in.bp := !switches(x)(y).io.in_p.ready
+            
+            
+            switches(x)(y).io.in_p.bits     <> io.planets(x)(y).in.ship
+            switches(x)(y).io.in_p.valid    <> io.planets(x)(y).in.ship_valid
+            io.planets(x)(y).in.bp          <> !switches(x)(y).io.in_p.ready
 
-            io.planets(x)(y).out.ship := switches(x)(y).io.out.out_p.bits
-            io.planets(x)(y).out.ship_valid := switches(x)(y).io.out.out_p.valid
-            switches(x)(y).io.out.out_p.ready := !io.planets(x)(y).out.bp
+            io.planets(x)(y).out.ship           <> switches(x)(y).io.out.out_p.bits
+            io.planets(x)(y).out.ship_valid     <> switches(x)(y).io.out.out_p.valid
+            switches(x)(y).io.out.out_p.ready   <> !io.planets(x)(y).out.bp
         }
     }
 }
