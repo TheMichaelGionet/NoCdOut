@@ -476,5 +476,14 @@ class SkippyBuilder( params : GameParameters, general_id : Int ) extends General
     log_cloud_diam              = 5
 }
 
+class AndyBuilder (params: GameParameters, general_id : Int) extends GeneralGeneralBuilder(params, general_id){
 
+        markov_state_matrix = List( List( 0.5, 0.15, 0.15, 0.2 ), List( 0.0, 0.5, 0.5, 0.0 ), List( 0.1, 0.0, 0.8, 0.1 ), List( 0.3, 0.3, 0.0, 0.4 ) )
+
+        memory_depth                = 2
+        emergency_build_defences    = true
+        ship_build_hp_bias          = 25
+        prefer_beefy_ships          = false
+        my_turret_limit             = 200
+    }
 
