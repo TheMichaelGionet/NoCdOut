@@ -166,7 +166,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             def print_jeff() = 
             {
-                println( "Jeff: " + cycle + 
+                println( "Jeff:      " + cycle + 
                     ", " + dut.state_observation.le_vec(1).is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(1).owned_by.peekValue().asBigInt + 
                     ", " + dut.state_observation.le_vec(1).resources.peekValue().asBigInt +
@@ -311,7 +311,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             def print_jeff() = 
             {
-                println( "Jeff: " + cycle + 
+                println( "Jeff:     " + cycle + 
                     ", " + dut.state_observation.le_vec(1).is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(1).owned_by.peekValue().asBigInt + 
                     ", " + dut.state_observation.le_vec(1).resources.peekValue().asBigInt +
