@@ -262,3 +262,130 @@ class GeneralGeneralBuilder( params : GameParameters, general_id : Int ) extends
 }
 
 
+class Timur( params : GameParameters, buffs : GeneralBuffs ) extends GeneralDFA( params, buffs )
+{
+    val r           = new scala.util.Random
+    val first_frame = RegInit( true.B )
+    first_frame     := false.B
+
+    object TimurStates
+    {
+        val snot                = 0
+        val get_sick            = 1
+        val buy_heaters         = 2
+        val build_slum          = 3
+        val become_enlightened  = 4
+        val yell_at_video_games = 5
+        val count               = 6
+    }
+    
+    object TimurStateTimers
+    {
+        val snot                = 10
+        val get_sick            = 20
+        val buy_heaters         = 5
+        val build_slum          = 10
+        val become_enlightened  = 1
+        val yell_at_video_games = 5
+    }
+    
+    val next_state_lut              = RegInit( VecInit( List( TimurStates.get_sick.U, TimurStates.buy_heaters.U, TimurStates.build_slum.U, TimurStates.become_enlightened.U, TimurStates.yell_at_video_games.U, TimurStates.snot.U ) ) )
+    val next_timer_lut              = RegInit( VecInit( List( TimurStateTimers.get_sick.U, TimurStateTimers.buy_heaters.U, TimurStateTimers.build_slum.U, TimurStateTimers.become_enlightened.U, TimurStateTimers.yell_at_video_games.U, TimurStateTimers.snot.U ) ) )
+    
+    val state                       = RegInit( TimurStates.snot.U( bits.needed( TimurStates.count-1 ).W ) )
+    val next_state                  = next_state_lut( state )
+    
+    val state_switch_counter        = RegInit( TimurStateTimers.snot.U )
+    val next_state_switch_counter   = next_timer_lut( next_state )
+    
+    when( state_switch_counter > 0.U )
+    {
+        state_switch_counter    := state_switch_counter - 1.U
+    }
+    .otherwise
+    {
+        state_switch_counter    := next_state_switch_counter
+        state                   := next_state
+    }
+    
+    val stochasticity       = Module( new lfsr32( List( r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, 
+                                                        r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U,
+                                                        r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, 
+                                                        r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U ) ) )
+    
+    val random_x            = RegInit( r.nextInt( params.noc_x_size ).U( params.noc_x_size_len.W ) )
+    val random_y            = RegInit( r.nextInt( params.noc_y_size ).U( params.noc_y_size_len.W ) )
+    
+    random_x                := (random_x << 1) | ( random_y >> ( params.noc_y_size_len-1 ) ) ^ stochasticity.io.out
+    random_y                := (random_y << 1) | ( random_x >> ( params.noc_y_size_len-1 ) )
+    
+    val random_coords       = Wire( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
+    
+    random_coords.x         := random_x
+    random_coords.y         := random_y
+    
+    val memory              = Reg( new ScoutData( params.noc_x_size, params.noc_y_size, params.num_players_len ) )
+    
+    val learn               = io.ship_valid && ( io.ship_it_sees.ship_class === ShipClasses.scout.U ) && io.ship_it_sees.scout_data.data_valid
+    
+    when( learn )
+    {
+        memory              := io.ship_it_sees.scout_data
+    }
+    
+    // friend, foe, or empty planet. No one is safe from the beast. 
+    val MAD                 = memory.data_valid && ( state === TimurStates.yell_at_video_games.U )
+    
+    when( first_frame )
+    {
+        memory.data_valid   := false.B
+    }
+    
+    io.do_build_ship        := ( state =/= TimurStates.get_sick.U ) && ( state =/= TimurStates.build_slum.U )
+    
+    io.add_turret_hp        := ( state === TimurStates.build_slum.U )
+    
+    io.how_much_turret_hp   := 5.U
+    
+    when( MAD )
+    {
+        io.command_where    := memory.loc
+        io.how_many_ships   := 100.U
+    }
+    .otherwise
+    {
+        io.command_where    := random_coords
+        io.how_many_ships   := 5.U
+    }
+    
+    when(       state === TimurStates.snot.U )
+    {
+        io.which_ship       := ShipClasses.basic.U
+    }
+    .elsewhen(  state === TimurStates.buy_heaters.U )
+    {
+        io.which_ship       := ShipClasses.destroyer.U
+    }
+    .elsewhen(  state === TimurStates.become_enlightened.U )
+    {
+        io.which_ship       := ShipClasses.scout.U
+    }
+    .elsewhen(  state === TimurStates.yell_at_video_games.U )
+    {
+        io.which_ship       := ShipClasses.attack.U
+    }
+    .otherwise // should never execute, but need the default case regardless
+    {
+        io.which_ship       := ShipClasses.beefer.U
+    }
+    
+    
+}
+
+class TimurBuilder( params : GameParameters, general_id : Int ) extends GeneralBuilder( params, general_id )
+{
+    buffs       = new GeneralNoneBuffs( params )
+    def gen()   = new Timur( params, buffs )
+}
+
+
