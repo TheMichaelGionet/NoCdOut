@@ -602,11 +602,11 @@ class NocBuilder(params: GameParameters) extends Module{
     }
     for(y <- 0 until params.noc_y_size){
         switches(0)(y).io.in.in_w <> switches(0)(y).io.out.out_w //feedback edges on edge of mesh
-        switches(params.noc_x_size)(y).io.in.in_e <> switches(params.noc_x_size)(y).io.out.out_e
+        switches(params.noc_x_size-1)(y).io.in.in_e <> switches(params.noc_x_size-1)(y).io.out.out_e
     }
     for (x <- 0 until params.noc_x_size){
         switches(x)(0).io.in.in_s <> switches(x)(0).io.out.out_s 
-        switches(x)(params.noc_y_size).io.in.in_n <> switches(x)(params.noc_y_size).io.out.out_n
+        switches(x)(params.noc_y_size-1).io.in.in_n <> switches(x)(params.noc_y_size-1).io.out.out_n
     }
 
     //planet wiring harness?
