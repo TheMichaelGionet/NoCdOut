@@ -388,4 +388,93 @@ class TimurBuilder( params : GameParameters, general_id : Int ) extends GeneralB
     def gen()   = new Timur( params, buffs )
 }
 
+class OobleckBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.8, 0.15, 0.0, 0.05 ), List( 0.5, 0.3, 0.0, 0.2 ), List( 0.1, 0.0, 0.8, 0.1 ), List( 0.1, 0.0, 0.0, 0.9 ) )
+    
+    memory_depth                = 4
+    probe_all_ships             = true
+    emergency_build_defences    = true
+    ship_build_hp_bias          = 20
+    my_turret_limit             = 100
+}
+
+class BushManMikeBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.6, 0.1, 0.1, 0.2 ), List( 0.0, 0.8, 0.0, 0.2 ), List( 0.1, 0.0, 0.6, 0.3 ), List( 0.0, 0.0, 0.1, 0.9 ) )
+    
+    memory_depth                = 1
+    ship_build_hp_bias          = 40
+    my_turret_limit             = 50
+    emergency_build_defences    = true
+    make_defence_cloud          = true
+    log_cloud_diam              = 2
+}
+
+class SpaceManMikeBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.5, 0.4, 0.0, 0.1 ), List( 0.2, 0.8, 0.0, 0.0 ), List( 0.1, 0.1, 0.5, 0.3 ), List( 0.0, 0.0, 0.1, 0.9 ) )
+    
+    memory_depth                = 2
+    ship_build_hp_bias          = 30
+    my_turret_limit             = 75
+    make_defence_cloud          = true
+    log_cloud_diam              = 5
+    probe_all_ships             = true
+}
+
+class DaBorgBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.5, 0.1, 0.3, 0.1 ), List( 0.2, 0.6, 0.2, 0.0 ), List( 0.1, 0.0, 0.9, 0.0 ), List( 0.0, 0.1, 0.8, 0.1 ) )
+    
+    memory_depth                = 4
+    ship_build_hp_bias          = 5
+    my_turret_limit             = 100
+    probe_all_ships             = true
+}
+
+class WilliamBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.1, 0.0, 0.0, 0.9 ), List( 0.1, 0.1, 0.8, 0.0 ), List( 0.1, 0.1, 0.0, 0.8 ), List( 0.1, 0.1, 0.0, 0.8 ) )
+    
+    memory_depth                = 1
+    ship_build_hp_bias          = 100
+    my_turret_limit             = 400
+    prefer_beefy_ships          = true
+    probe_all_ships             = true
+}
+
+class OnionBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.1, 0.8, 0.0, 0.1 ), List( 0.2, 0.8, 0.0, 0.0 ), List( 0.0, 0.3, 0.6, 0.1 ), List( 0.0, 0.0, 0.2, 0.8 ) )
+    
+    memory_depth                = 1
+    ship_build_hp_bias          = 100
+    my_turret_limit             = 20
+    make_defence_cloud          = true
+    log_cloud_diam              = 4
+}
+
+class GregBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.1, 0.1, 0.8, 0.0 ), List( 0.0, 0.2, 0.8, 0.0 ), List( 0.0, 0.1, 0.8, 0.1 ), List( 0.1, 0.0, 0.8, 0.1 ) )
+    
+    memory_depth                = 1
+    ship_build_hp_bias          = 5
+    my_turret_limit             = 80
+    emergency_build_defences    = true
+}
+
+class SkippyBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
+{
+    markov_state_matrix         = List( List( 0.1, 0.0, 0.0, 0.9 ), List( 0.0, 0.2, 0.0, 0.8 ), List( 0.0, 0.0, 0.0, 1.0 ), List( 0.1, 0.1, 0.0, 0.8 ) )
+    
+    memory_depth                = 1
+    ship_build_hp_bias          = 20
+    my_turret_limit             = 40
+    make_defence_cloud          = true
+    log_cloud_diam              = 5
+}
+
+
 
