@@ -390,7 +390,7 @@ class TimurBuilder( params : GameParameters, general_id : Int ) extends GeneralB
 
 class OobleckBuilder( params : GameParameters, general_id : Int ) extends GeneralGeneralBuilder( params, general_id )
 {
-    markov_state_matrix         = List( List( 0.8, 0.15, 0.0, 0.05 ), List( 0.5, 0.3, 0.0, 0.2 ), List( 0.1, 0.0, 0.8, 0.1 ), List( 0.1, 0.0, 0.0, 0.9 ) )
+    markov_state_matrix         = List( List( 0.8, 0.15, 0.0, 0.05 ), List( 0.5, 0.3, 0.0, 0.2 ), List( 0.1, 0.2, 0.6, 0.1 ), List( 0.1, 0.0, 0.1, 0.8 ) )
     
     memory_depth                = 4
     probe_all_ships             = true
