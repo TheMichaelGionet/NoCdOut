@@ -7,6 +7,7 @@ import common._
 import ships._
 import general._
 import planet._
+import noc._
 
 class PlanetDescriptor
 {
@@ -22,21 +23,20 @@ class PlanetDescriptor
     var y_pos                                       = 0
 }
 
+class ProtoCellBundle( n : Int ) extends Bundle
+{
+    val is_planet       = Output( Bool() )
+    val planet_index    = Output( UInt( n.W ) )
+}
 
 class LevelBuilder( params : GameParameters, default_buffer_depth : Int, planet_descriptors : List[PlanetDescriptor] ) extends Module
 {
     val number_of_planets   = planet_descriptors.length
 
-    class ProtoCellBundle extends Bundle
-    {
-        val is_planet       = Output( Bool() )
-        val planet_index    = Output( UInt( bits.needed( planet_descriptors.length-1 ).W ) )
-    }
-
     val io = IO( new Bundle
     {
         val le_vec  = Vec( params.noc_x_size, Vec( params.noc_y_size, new SectorBundle( params ) ) )
-        val meta    = Vec( params.noc_x_size, Vec( params.noc_y_size, new ProtoCellBundle ) )
+        val meta    = Vec( params.noc_x_size, Vec( params.noc_y_size, new ProtoCellBundle( bits.needed( planet_descriptors.length-1 ) ) ) )
     } )
     
     val state_observation = IO( new Bundle
@@ -97,6 +97,40 @@ class LevelBuilder( params : GameParameters, default_buffer_depth : Int, planet_
     {
         state_observation.le_vec( index ) <> populated_cells(p.x_pos)(p.y_pos).asInstanceOf[Planet].state_observation
         index += 1
+    }
+}
+
+class LevelNocBuilder( params : GameParameters, default_buffer_depth : Int, planet_descriptors : List[PlanetDescriptor] ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val le_vec  = Vec( params.noc_x_size, Vec( params.noc_y_size, new SectorBundleObserve( params ) ) )
+        val meta    = Vec( params.noc_x_size, Vec( params.noc_y_size, new ProtoCellBundle( bits.needed( planet_descriptors.length-1 ) ) ) )
+    } )
+    
+    val state_observation = IO( new Bundle
+    {
+        val le_vec  = Vec( planet_descriptors.length, new PlanetStateBundle( params ) )
+    } )
+    
+    val le_level    = Module( new LevelBuilder( params, default_buffer_depth, planet_descriptors ) )
+    val le_noc      = Module( new NocBuilder( params ) )
+    
+    for( x <- 0 until params.noc_x_size )
+    {
+        for( y <- 0 until params.noc_y_size )
+        {
+            le_level.io.le_vec(x)(y).in <>  le_noc.io.planets(x)(y).out
+            le_noc.io.planets(x)(y).in  <>  le_level.io.le_vec(x)(y).out
+            
+            io.meta(x)(y)               <> le_level.io.meta(x)(y)
+            io.le_vec(x)(y)             := le_level.io.le_vec(x)(y)
+        }
+    }
+    
+    for( i <- 0 until planet_descriptors.length )
+    {
+        state_observation.le_vec( i )   := le_level.state_observation.le_vec( i )
     }
 }
 

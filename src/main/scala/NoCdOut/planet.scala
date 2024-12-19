@@ -25,6 +25,22 @@ class SectorBundle( params : GameParameters ) extends Bundle
     }
 }
 
+class SectorBundleObserve( params : GameParameters ) extends Bundle
+{
+    val in = new Bundle
+    {
+        val bp          = Output( Bool() )
+        val ship        = Output( new Ship( params ) )
+        val ship_valid  = Output( Bool() )
+    }
+    val out = new Bundle
+    {
+        val bp          = Output( Bool() )
+        val ship        = Output( new Ship( params ) )
+        val ship_valid  = Output( Bool() )
+    }
+}
+
 abstract class Sector( params : GameParameters, buffer_depth : Int ) extends Module
 {
     val io = IO( new SectorBundle( params ) )
