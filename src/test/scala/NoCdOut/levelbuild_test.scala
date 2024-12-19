@@ -391,6 +391,11 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.le_vec(0).resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(0).turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(0).garrison_valid.peekValue().asBigInt )
+                // descriptor0.x_pos
+                if( dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship_valid.peekValue().asBigInt == 1 )
+                {
+                    println( "billdor0 sends ship to " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.x.peekValue().asBigInt.toInt + ", " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.y.peekValue().asBigInt.toInt )
+                }
             }
             
             def print_jeff() = 
@@ -403,6 +408,11 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                     ", " + dut.state_observation.le_vec(1).resource_prod.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(1).turret_hp.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(1).garrison_valid.peekValue().asBigInt )
+                
+                if( dut.io.le_vec(descriptor1.x_pos)(descriptor1.y_pos).out.ship_valid.peekValue().asBigInt == 1 )
+                {
+                    println( "jeff sends ship to " + dut.io.le_vec(descriptor1.x_pos)(descriptor1.y_pos).out.ship.dst.x.peekValue().asBigInt.toInt + ", " + dut.io.le_vec(descriptor1.x_pos)(descriptor1.y_pos).out.ship.dst.y.peekValue().asBigInt.toInt )
+                }
             }
             
             println( "d00d: cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
