@@ -153,3 +153,41 @@ class FIFO[T <: chisel3.Data]( n : Int, dt : T ) extends Module
     io.out.bits := storage( read_ptr )
 }
 
+class PriorityMux[T <: chisel3.Data]( n : Int, dt : T ) extends Module
+{
+    val io = IO( new Bundle
+    {
+        val selects = Input( Vec( n, Bool() ) )
+        val ins     = Input( Vec( n, dt ) )
+        val default = Input( dt )
+        
+        val out     = Output( dt )
+    } )
+    
+    val partials    = Wire( Vec( n+1, dt ) )
+    
+    for( i <- 0 until n )
+    {
+        partials(i) := Mux( io.selects(i), io.ins(i), partials(i+1) )
+    }
+    partials(n)     := io.default
+    
+    io.out          := partials(0)
+}
+
+object PriorityMux
+{
+    def apply[T <: chisel3.Data]( selects : Seq[Bool], ins : Seq[T], default : T, dt : T ) : T =
+    {
+        val pmux        = Module( new PriorityMux( selects.length, dt ) )
+        pmux.io.default := default
+        
+        for( i <- 0 until selects.length )
+        {
+            pmux.io.selects(i)  := selects(i)
+            pmux.io.ins(i)      := ins(i)
+        }
+        return pmux.io.out
+    }
+}
+
