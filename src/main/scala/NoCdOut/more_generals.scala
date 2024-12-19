@@ -27,7 +27,7 @@ object MarkovStatesToRange
         {
             for( y <- 0 until States.num_states )
             {
-                discrete_markov(x)(y)   = ( (1L<<8).toDouble * markov_state_matrix(x)(y) ).toInt
+                discrete_markov(x)(y)   = ( ((1L<<8) - 1).toDouble * markov_state_matrix(x)(y) ).toInt
             }
         }
     
@@ -94,7 +94,7 @@ class GeneralGeneralDFA(    params : GameParameters,
         state   := States.explore.U
     }
     
-    val state_randomness                    = new lfsr8( List[UInt]( r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U ) )
+    val state_randomness                    = Module( new lfsr8( List[UInt]( r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U ) ) )
     
     val number_to_compare_for_randomness    = RegInit( 7.U(8.W) )
     number_to_compare_for_randomness        := ( number_to_compare_for_randomness << 1 ) | ( number_to_compare_for_randomness >> 7 ) ^ state_randomness.io.out
@@ -115,43 +115,65 @@ class GeneralGeneralDFA(    params : GameParameters,
                             ) 
                         )
     
-    state   := next_state
+    state       := next_state
+
+    
+    // Used for both coordinate generation and memory handling
+    val ship_is_ally            = io.ship_valid && ( io.ship_it_sees.general_id.side === my_side.U )
+    val i_own_ship              = ship_is_ally  && ( io.ship_it_sees.general_id.general_owned === my_general_id.U )
+    val is_scout                = io.ship_valid && ( io.ship_it_sees.ship_class === ShipClasses.scout.U )
+    
+    val learn_from_scout_data   = i_own_ship && is_scout && io.ship_it_sees.scout_data.data_valid
+    
+    val learn_from_ship_probe   = io.ship_valid && !i_own_ship && !is_scout && probe_all_ships.B
     
     // Handle coordinate generation
     
-    val coordinate_randomness               = new lfsr16( List( r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U ) )
+    val coordinate_randomness               = Module( new lfsr16( List( r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U, r.nextInt(2).U ) ) )
     
     val random_coordinates                  = Reg( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
-    when( ( counter & 1.U ) === 0.U )
-    {
-        random_coordinates.x                    := ( random_coordinates.x << 1.U ) | ( random_coordinates.x >> (params.noc_x_size_len-1).U ) ^ coordinate_randomness.io.out
-        random_coordinates.y                    := ( random_coordinates.y << 1.U ) | ( random_coordinates.y >> (params.noc_y_size_len-1).U )
-    }
-    .otherwise
-    {
-        random_coordinates.x                    := ( random_coordinates.x << 1.U ) | ( random_coordinates.x >> (params.noc_x_size_len-1).U )
-        random_coordinates.y                    := ( random_coordinates.y << 1.U ) | ( random_coordinates.y >> (params.noc_y_size_len-1).U ) ^ coordinate_randomness.io.out
-    }
+    random_coordinates.x                    := ( random_coordinates.x << 1.U ) | ( random_coordinates.y >> (params.noc_x_size_len-1).U ) ^ coordinate_randomness.io.out
+    random_coordinates.y                    := ( random_coordinates.y << 1.U ) | ( random_coordinates.x >> (params.noc_y_size_len-1).U )
+    //when( ( counter & 1.U ) === 0.U )
+    //{
+    //    random_coordinates.x                    := ( random_coordinates.x << 1.U ) | ( random_coordinates.x >> (params.noc_x_size_len-1).U ) ^ coordinate_randomness.io.out
+    //    random_coordinates.y                    := ( random_coordinates.y << 1.U ) | ( random_coordinates.y >> (params.noc_y_size_len-1).U )
+    //}
+    //.otherwise
+    //{
+    //    random_coordinates.x                    := ( random_coordinates.x << 1.U ) | ( random_coordinates.x >> (params.noc_x_size_len-1).U )
+    //    random_coordinates.y                    := ( random_coordinates.y << 1.U ) | ( random_coordinates.y >> (params.noc_y_size_len-1).U ) ^ coordinate_randomness.io.out
+    //}
     
     val coordinates_are_attackable              = memory.map{ x => x.data_valid && ( x.side =/= my_side.U ) && x.owned }
     
     //val given_memory_attack_these_coordinates   = PriorityMux( (memory.map{ x => x.loc } zip coordinates_are_attackable).map{ case(sel,opt) => sel -> opt } )
     val given_memory_attack_these_coordinates   = PriorityMux( coordinates_are_attackable, memory.map{x => x.loc}, random_coordinates, new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
     
-    val attackable_coordinates                  = if( memory_depth > 0 ) given_memory_attack_these_coordinates else random_coordinates
+    val attack_coordinates_not_imminent         = if( memory_depth > 0 ) given_memory_attack_these_coordinates else random_coordinates
+    
+    val attack_scout_coordinates                = learn_from_scout_data && ( io.ship_it_sees.scout_data.side =/= my_side.U ) && io.ship_it_sees.scout_data.owned
+    
+    val counter_attack_probe_ship               = learn_from_ship_probe && ( io.ship_it_sees.general_id.side =/= my_side.U )
+    
+    val attackable_coordinates                  = Mux( attack_scout_coordinates, io.ship_it_sees.scout_data.loc,
+                                                    Mux( counter_attack_probe_ship, io.ship_it_sees.src, attack_coordinates_not_imminent ) )
     
     val coordinates_are_exploitable             = memory.map{ x => x.data_valid && !x.owned }
     
     //val given_memory_exploit_these_coordinates  = PriorityMux( (memory.map{ x => x.loc } zip coordinates_are_attackable).map{ case(sel,opt) => sel -> opt } )
     val given_memory_exploit_these_coordinates  = PriorityMux( coordinates_are_exploitable, memory.map{x => x.loc}, random_coordinates, new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
     
-    val exploitable_coordinates                 = if( memory_depth > 0 ) given_memory_exploit_these_coordinates else random_coordinates
+    val exploit_scout_coordinates               = learn_from_scout_data && !io.ship_it_sees.scout_data.owned
+    
+    val exploitable_coordinates_not_imminent    = if( memory_depth > 0 ) given_memory_exploit_these_coordinates else random_coordinates
+    
+    val exploitable_coordinates                 = Mux( exploit_scout_coordinates, io.ship_it_sees.scout_data.loc, exploitable_coordinates_not_imminent )
     
     val coordinates_around_me                   = Wire( new Coordinates( params.noc_x_size_len, params.noc_y_size_len ) )
-    coordinates_around_me.x                     := ( my_x_pos - (1<< (log_cloud_diam-1)) ).S( (params.noc_x_size_len+1).W ).asUInt + ( random_coordinates.x & ( (1<<log_cloud_diam)-1 ).U )
-    coordinates_around_me.y                     := ( my_y_pos - (1<< (log_cloud_diam-1)) ).S( (params.noc_y_size_len+1).W ).asUInt + ( random_coordinates.y & ( (1<<log_cloud_diam)-1 ).U )
-    
-    
+    coordinates_around_me.x                     := ( (my_x_pos - (1<< (log_cloud_diam-1))) % params.noc_x_size ).S( (params.noc_x_size_len+1).W ).asUInt + ( random_coordinates.x & ( (1<<log_cloud_diam)-1 ).U )
+    coordinates_around_me.y                     := ( (my_y_pos - (1<< (log_cloud_diam-1))) % params.noc_y_size ).S( (params.noc_y_size_len+1).W ).asUInt + ( random_coordinates.y & ( (1<<log_cloud_diam)-1 ).U )
+
     
     
     // Handle economy decisions/command ship
@@ -179,14 +201,6 @@ class GeneralGeneralDFA(    params : GameParameters,
     
     // Handle memory stuff
     
-    val ship_is_ally            = io.ship_valid && ( io.ship_it_sees.general_id.side === my_side.U )
-    val i_own_ship              = ship_is_ally  && ( io.ship_it_sees.general_id.general_owned === my_general_id.U )
-    val is_scout                = io.ship_valid && ( io.ship_it_sees.ship_class === ShipClasses.scout.U )
-    
-    val learn_from_scout_data   = i_own_ship && is_scout && io.ship_it_sees.scout_data.data_valid
-    
-    val learn_from_ship_probe   = io.ship_valid && !i_own_ship && !is_scout && probe_all_ships.B
-    
     if( memory_depth > 0 )
     {
         when( learn_from_scout_data )
@@ -212,6 +226,39 @@ class GeneralGeneralDFA(    params : GameParameters,
 }
 
 
-
+class GeneralGeneralBuilder( params : GameParameters, general_id : Int ) extends GeneralBuilder( params, general_id )
+{
+    buffs       = new GeneralNoneBuffs( params )
+    var markov_state_matrix : List[List[Double]] = List( List( 1.0, 0.0, 0.0, 0.0 ), List( 0.0, 1.0, 0.0, 0.0 ), List( 0.0, 0.0, 1.0, 0.0 ), List( 0.0, 0.0, 0.0, 1.0 ) )
+    
+    var memory_depth                = 0
+    var my_side                     = 0
+    var my_general_id               = general_id
+    var my_x_pos                    = 0
+    var my_y_pos                    = 0
+    var probe_all_ships             = false
+    var emergency_build_defences    = false
+    var make_defence_cloud          = false
+    var log_cloud_diam              = 0
+    var ship_build_hp_bias          = 0
+    var prefer_beefy_ships          = false
+    var my_turret_limit             = 50
+    
+    def gen()   = new GeneralGeneralDFA( params, 
+                            buffs, 
+                            markov_state_matrix, 
+                            memory_depth, 
+                            my_side, 
+                            my_general_id, 
+                            my_x_pos, 
+                            my_y_pos, 
+                            probe_all_ships, 
+                            emergency_build_defences, 
+                            make_defence_cloud, 
+                            log_cloud_diam, 
+                            ship_build_hp_bias, 
+                            prefer_beefy_ships,
+                            my_turret_limit )
+}
 
 

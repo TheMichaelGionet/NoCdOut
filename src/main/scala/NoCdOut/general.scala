@@ -111,8 +111,8 @@ class GeneralJeffDFA( params : GameParameters, buffs : GeneralBuffs, general_id 
     val x_loc           = RegInit( 0x3.U( params.noc_x_size_len.W ) )
     val y_loc           = RegInit( 0x1.U( params.noc_y_size_len.W ) )
     
-    x_loc := x_loc << 1 | ( LFSR.io.out ^ x_loc( params.noc_x_size_len-1 ) )
-    y_loc := y_loc << 1 | ( 1.U ^ LFSR.io.out ^ y_loc( params.noc_y_size_len-1 ) )
+    x_loc := (x_loc << 1) | ( LFSR.io.out ^ x_loc( params.noc_x_size_len-1 ) )
+    y_loc := (y_loc << 1) | ( 1.U ^ LFSR.io.out ^ y_loc( params.noc_y_size_len-1 ) )
 
     io.how_many_ships   := Mux( startup, 1.U, 5.U )
 
