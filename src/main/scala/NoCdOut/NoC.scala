@@ -206,7 +206,7 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     io.packets_out.out_p.bits := out_p_wires
 
     //backpressure propagation
-    when((n4s && !n2s) || (n4p && !n2s)){//north
+    when((n4s && !n2s) || (n4p && !n2p)){//north
         io.packets_in.in_n.ready := 0.U
    }.otherwise{
         io.packets_in.in_n.ready := 1.U
@@ -515,11 +515,11 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     val out_w_ready_reg = RegInit(true.B)
     val out_p_ready_reg = RegInit(true.B)
     
-    val out_n_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
-    val out_s_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
-    val out_e_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
-    val out_w_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
-    val out_p_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+    val out_n_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), io.out.out_n.ready)
+    val out_s_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), io.out.out_s.ready)
+    val out_e_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), io.out.out_e.ready)
+    val out_w_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), io.out.out_w.ready)
+    val out_p_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), io.out.out_p.ready)
 
     val out_n_valid_reg = RegEnable(false.B, io.out.out_n.ready)
     val out_s_valid_reg = RegEnable(false.B, io.out.out_s.ready)
@@ -569,8 +569,8 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     io.out.out_p.valid := out_p_valid_reg 
     out_p_ready_reg := io.out.out_p.ready 
 
-    val one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt) === 1.U)
-    val more_than_one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt) > 1.U)
+    val one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt + out_p_valid_reg.asUInt) === 1.U)
+    val more_than_one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt + out_p_valid_reg.asUInt) > 1.U)
     val combat_in_switch = (vc_combat.reduce(_ || _) || has_combat_global)
 
     io.one_ship := one_ship
