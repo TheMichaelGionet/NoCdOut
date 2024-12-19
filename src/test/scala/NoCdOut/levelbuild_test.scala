@@ -208,10 +208,12 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
 
         val params  = new GameParameters( input_params )
 
-        val bill_dorr0 = new GeneralTestPlanetBuilder( params, 10, 1 )
+        val uhoh       = new TimurBuilder( params, 1 )
+        //val bill_dorr0 = new GeneralTestPlanetBuilder( params, 10, 1 )
         val bill_dorr1 = new GeneralTestPlanetBuilder( params, 15, 2 )
         
-        val general_builders0   = List[GeneralBuilder]( bill_dorr0, bill_dorr1 )
+        //val general_builders0   = List[GeneralBuilder]( bill_dorr0, bill_dorr1 )
+        val general_builders0   = List[GeneralBuilder]( uhoh, bill_dorr1 )
         val general_ids0        = List[Int]( 1, 2 )
         
         val Jeff        = new GeneralJeffBuilder( params, 4 )
@@ -301,24 +303,6 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                 {
                     return " "
                 }
-                /*
-                if( space_states[x][y].noc.combat )
-                {
-                    printf( "#" );
-                }
-                else if( space_states[x][y].noc.more_ship )
-                {
-                    printf( "%%" );
-                }
-                else if( space_states[x][y].noc.one_ship )
-                {
-                    printf( ">" );
-                }
-                else
-                {
-                    printf( " " );
-                }
-                */
             }
             
             def print_planet_map() = 
@@ -403,7 +387,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             def print_billdor0()  =
             {
-                println( "billdor0: " + cycle + 
+                println( "bozo: " + cycle + 
                     ", " + dut.state_observation.le_vec(0).is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(0).owned_by.peekValue().asBigInt + 
                     ", " + dut.state_observation.le_vec(0).resources.peekValue().asBigInt +
@@ -414,13 +398,13 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                 // descriptor0.x_pos
                 if( dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship_valid.peekValue().asBigInt == 1 )
                 {
-                    println( "billdor0 sends ship to " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.x.peekValue().asBigInt.toInt + ", " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.y.peekValue().asBigInt.toInt )
+                    println( "bozo sends ship to " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.x.peekValue().asBigInt.toInt + ", " + dut.io.le_vec(descriptor0.x_pos)(descriptor0.y_pos).out.ship.dst.y.peekValue().asBigInt.toInt )
                 }
             }
             
             def print_jeff() = 
             {
-                println( "Jeff:     " + cycle + 
+                println( "Jeff: " + cycle + 
                     ", " + dut.state_observation.le_vec(1).is_owned.peekValue().asBigInt +
                     ", " + dut.state_observation.le_vec(1).owned_by.peekValue().asBigInt + 
                     ", " + dut.state_observation.le_vec(1).resources.peekValue().asBigInt +
@@ -435,20 +419,20 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                 }
             }
             
-            println( "d00d: cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
+            //println( "d00d: cycle, is_owned, owned_by, resources, limit_resources, resource_prod, turret_hp, garrison_valid" )
             
-            print_billdor0()
-            print_jeff()
-            print_planet_map()
+            //print_billdor0()
+            //print_jeff()
+            //print_planet_map()
 
             dut.clock.step()
             cycle += 1
             
             while( cycle < 30 )
             {
-                print_billdor0()
-                print_jeff()
-                print_planet_map()
+                //print_billdor0()
+                //print_jeff()
+                //print_planet_map()
                 
                 dut.clock.step()
                 cycle += 1

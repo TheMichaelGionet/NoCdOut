@@ -296,9 +296,9 @@ class Timur( params : GameParameters, buffs : GeneralBuffs ) extends GeneralDFA(
     val next_state                  = next_state_lut( state )
     
     val state_switch_counter        = RegInit( TimurStateTimers.snot.U )
-    val next_state_switch_counter   = next_timer_lut( next_state )
+    val next_state_switch_counter   = next_timer_lut( state )
     
-    when( state_switch_counter > 0.U )
+    when( state_switch_counter > 1.U )
     {
         state_switch_counter    := state_switch_counter - 1.U
     }
