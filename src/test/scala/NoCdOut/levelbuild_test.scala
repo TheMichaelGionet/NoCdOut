@@ -283,14 +283,66 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             var cycle = 0
             
+            // TODO: This once the NOC signals are there.
+            //def get_noc_state_character( x : Int, y : Int ) : String = 
+            //{
+            //    if(  )
+            //}
+            
             def print_planet_map() = 
             {
-                for( y <- 0 until 4 )
+                for( y <- 0 until params.noc_y_size )
                 {
                     var le_string = ""
-                    for( x <- 0 until 4 )
+                    for( x <- 0 until params.noc_x_size )
                     {
-                        le_string += "I " + dut.io.le_vec(x)(y).in.ship_valid.peekValue().asBigInt + ", O " + dut.io.le_vec(x)(y).out.ship_valid.peekValue().asBigInt + " | "
+                        if( dut.io.meta(x)(y).is_planet.peekValue().asBigInt == 1 )
+                        {
+                            val planet_index    = dut.io.meta(x)(y).planet_index.peekValue.asBigInt
+                            val planet          = dut.state_observation.le_vec(planet_index.toInt)
+                            
+                            if( ( dut.io.le_vec(x)(y).in.ship_valid.peekValue.asBigInt == 1 ) || ( dut.io.le_vec(x)(y).out.ship_valid.peekValue.asBigInt == 1 ) )
+                            {
+                                le_string   += "{"
+                            }
+                            else
+                            {
+                                le_string   += "("
+                            }
+                            
+                            if( planet.garrison_valid.peekValue.asBigInt == 1 )
+                            {
+                                le_string   += "> "
+                            }
+                            else
+                            {
+                                val first_digit     = (planet_index & 0xf).toInt.toHexString
+                                val second_digit    = ( ( planet_index >> 4 ) & 0xf ).toInt.toHexString
+                                le_string           += second_digit
+                                le_string           += first_digit
+                            }
+                        }
+                        else
+                        {
+                            if( dut.io.le_vec(x)(y).in.ship_valid.peekValue.asBigInt == 1 )
+                            {
+                                le_string   += ">"
+                            }
+                            else
+                            {
+                                le_string   += " "
+                            }
+
+                            if( dut.io.le_vec(x)(y).out.ship_valid.peekValue.asBigInt == 1 )
+                            {
+                                le_string   += ".>"
+                            }
+                            else
+                            {
+                                le_string   += ". "
+                            }
+                        }
+                        //le_string += get_noc_state_character( x, y )
                     }
                     println( le_string )
                 }
