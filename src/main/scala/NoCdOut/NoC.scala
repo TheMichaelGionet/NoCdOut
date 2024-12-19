@@ -7,6 +7,7 @@ import chisel3.util._
 
 import common._
 import ships._
+import planet.SectorBundle
 
 class InPerSide(params: GameParameters) extends Bundle {
     val in_n = Flipped(Decoupled(new Ship(params)))//full bidirectionality!
@@ -46,9 +47,9 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     // conflict resolution
     val n2s = n4s && io.packets_out.out_s.ready // deny packet transfer when output VC is BP'd
     val w2e = w4e && io.packets_out.out_e.ready
-    val n2p = n4p // give prio to N exiting NoC
+    val n2p = n4p && io.packets_out.out_p.ready // give prio to N exiting NoC
     val w2s = w4s && !n2s && io.packets_out.out_s.ready // w loses to n
-    val w2p = w4p && !n2p
+    val w2p = w4p && !n2p && io.packets_out.out_p.ready
     val p2e = p4e && !w2e && io.packets_out.out_e.ready
 
     //second set of intents + conflicts
@@ -64,9 +65,9 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     // conflict resolution
     val s2n = s4n && io.packets_out.out_n.ready // no conflicts here
     val e2w = e4w && io.packets_out.out_w.ready
-    val s2p = s4p && !w2p && !n2p // give prio to s exiting NoC, this noc lower prio
+    val s2p = s4p && !w2p && !n2p && io.packets_out.out_p.ready // give prio to s exiting NoC, this noc lower prio
     val e2n = e4n && !s2n && io.packets_out.out_n.ready // e loses to s
-    val e2p = e4p && !s2p && !n2p && !w2p // this noc lower prio output
+    val e2p = e4p && !s2p && !n2p && !w2p && io.packets_out.out_p.ready // this noc lower prio output
     val p2w = p4w && !e2w && io.packets_out.out_w.ready
 
     // extra turns for horiz-first routing
@@ -80,7 +81,7 @@ class Router(params: GameParameters, x: UInt, y: UInt) extends Module{
     val p2n = p4n && !e2n && !s2n && io.packets_out.out_n.ready && !w2n // simplify this signal for better synth
     
     // deprioritize p2p as much as possible
-    val p2p = p4p && !n2p && !e2p && !w2p && !s2p
+    val p2p = p4p && !n2p && !e2p && !w2p && !s2p && io.packets_out.out_p.ready
 
     val out_s_wires = Wire(new Ship(params))
     out_s_wires := DontCare
@@ -410,37 +411,74 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     })
 
     //val vcs_in = Seq.fill(params.num_players)(Wire(new InPerSide(params)))
-    val vc_in_reg = Reg(Vec(params.num_players, new InPerSide(params))) // I am honestly not sure if this works but sure it does!
+    //val vc_in_reg = RegEnable(Vec(params.num_players, new InPerSide(params)), ) // I am honestly not sure if this works but sure it does!
     // TODO: port all these over to regEnables
-    
-    for(i <- 0 until params.num_players){//update VC if the side matches iff not backpressured
-        when(vc_in_reg(i).in_n.ready && (io.in.in_n.bits.general_id.side === i.U)){
-            vc_in_reg(i).in_n <> io.in.in_n
-        }
-        when(vc_in_reg(i).in_w.ready && (io.in.in_w.bits.general_id.side === i.U)){
-            vc_in_reg(i).in_w <> io.in.in_w
-        }
-        when(vc_in_reg(i).in_e.ready && (io.in.in_e.bits.general_id.side === i.U)){
-            vc_in_reg(i).in_e <> io.in.in_e
-        }
-        when(vc_in_reg(i).in_s.ready && (io.in.in_s.bits.general_id.side === i.U)){
-            vc_in_reg(i).in_s <> io.in.in_s
-        }
-    }
+    //val en_n = Seq.fill(params.num_players)(io.in.in_n.ready)
+
+    val vc_in_n_ready_reg = VecInit(Seq.fill(params.num_players)(RegInit(true.B)))
+    val vc_in_s_ready_reg = VecInit(Seq.fill(params.num_players)(RegInit(true.B)))
+    val vc_in_e_ready_reg = VecInit(Seq.fill(params.num_players)(RegInit(true.B)))
+    val vc_in_w_ready_reg = VecInit(Seq.fill(params.num_players)(RegInit(true.B)))
+
+    val vc_in_n_data_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_n.bits, 0.U.asTypeOf(new Ship(params)), vc_in_n_ready_reg(j) && io.in.in_n.bits.general_id.side === j.U)))// CURSED
+    val vc_in_n_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_n.valid, false.B, vc_in_n_ready_reg(j) && io.in.in_n.bits.general_id.side === j.U)))
+
+    val vc_in_s_data_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_s.bits, 0.U.asTypeOf(new Ship(params)), vc_in_s_ready_reg(j) && io.in.in_s.bits.general_id.side === j.U)))// CURSED
+    val vc_in_s_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_s.valid, false.B, vc_in_s_ready_reg(j) && io.in.in_s.bits.general_id.side === j.U)))
+
+    val vc_in_e_data_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_e.bits, 0.U.asTypeOf(new Ship(params)), vc_in_e_ready_reg(j) && io.in.in_e.bits.general_id.side === j.U)))// CURSED
+    val vc_in_e_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_e.valid, false.B, vc_in_e_ready_reg(j) && io.in.in_e.bits.general_id.side === j.U)))
+
+    val vc_in_w_data_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_w.bits, 0.U.asTypeOf(new Ship(params)), vc_in_w_ready_reg(j) && io.in.in_w.bits.general_id.side === j.U)))// CURSED
+    val vc_in_w_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_w.valid, false.B, vc_in_w_ready_reg(j) && io.in.in_w.bits.general_id.side === j.U)))
+
+    // for(i <- 0 until params.num_players){//update VC if the side matches iff not backpressured
+    //     when(vc_in_reg(i).in_n.ready && (io.in.in_n.bits.general_id.side === i.U)){
+    //         vc_in_reg(i).in_n <> io.in.in_n
+    //     }
+    //     when(vc_in_reg(i).in_w.ready && (io.in.in_w.bits.general_id.side === i.U)){
+    //         vc_in_reg(i).in_w <> io.in.in_w
+    //     }
+    //     when(vc_in_reg(i).in_e.ready && (io.in.in_e.bits.general_id.side === i.U)){
+    //         vc_in_reg(i).in_e <> io.in.in_e
+    //     }
+    //     when(vc_in_reg(i).in_s.ready && (io.in.in_s.bits.general_id.side === i.U)){
+    //         vc_in_reg(i).in_s <> io.in.in_s
+    //     }
+    // }
 
     val vc_out_wire = Wire(Vec(params.num_players, new OutPerSide(params)))  //output VC must be RegEnables, change the Vec Wrapper but use wires for now because I am LAZY
     val planet_in_ready_fanout = Wire(Vec(params.num_players, UInt(1.W)))  //fanout for planet ready signals
 
-    val vc_routers = Seq[Router]()
+    val vc_routers = Seq.fill(params.num_players)(Module(new Router(params, x.U, y.U)))
     for (i <- 0 until params.num_players){
-        vc_routers :+ Module(new Router(params, x.U, y.U))//route per vc. as bp is only valid within vc, otherwise they fight!
-        vc_routers(i).io.packets_in <> vc_in_reg(i)
+        //vc_routers :+ Module(new Router(params, x.U, y.U))//route per vc. as bp is only valid within vc, otherwise they fight!
+        vc_routers(i).io.packets_in.in_n.bits := vc_in_n_data_reg(i)
+        vc_routers(i).io.packets_in.in_n.valid := vc_in_n_valid_reg(i)
+        vc_in_n_ready_reg(i) := vc_routers(i).io.packets_in.in_n.ready
+
+        vc_routers(i).io.packets_in.in_s.bits := vc_in_s_data_reg(i)
+        vc_routers(i).io.packets_in.in_s.valid := vc_in_s_valid_reg(i)
+        vc_in_s_ready_reg(i) := vc_routers(i).io.packets_in.in_s.ready
+
+        vc_routers(i).io.packets_in.in_w.bits := vc_in_w_data_reg(i)
+        vc_routers(i).io.packets_in.in_w.valid := vc_in_w_valid_reg(i)
+        vc_in_w_ready_reg(i) := vc_routers(i).io.packets_in.in_w.ready
+
+        vc_routers(i).io.packets_in.in_e.bits := vc_in_e_data_reg(i)
+        vc_routers(i).io.packets_in.in_e.valid := vc_in_e_valid_reg(i)
+        vc_in_e_ready_reg(i) := vc_routers(i).io.packets_in.in_e.ready
+
         vc_routers(i).io.planet_in.bits := io.in_p.bits // note PE is not registered in!
         vc_routers(i).io.planet_in.valid := ((io.in_p.bits.general_id.side === i.U) && io.in_p.valid)
-        vc_routers(i).io.planet_in.ready := planet_in_ready_fanout(i)
+        planet_in_ready_fanout(i) := vc_routers(i).io.planet_in.ready
         vc_routers(i).io.packets_out <> vc_out_wire(i)
     }
     io.in_p.ready := planet_in_ready_fanout.toSeq.reduce(_ & _) //if ANY readys are set to 0, then planet is not ready (a packet is held in the buffer)
+    io.in.in_n.ready := vc_in_n_ready_reg.reduce(_ & _)
+    io.in.in_s.ready := vc_in_s_ready_reg.reduce(_ & _)
+    io.in.in_w.ready := vc_in_w_ready_reg.reduce(_ & _)
+    io.in.in_e.ready := vc_in_e_ready_reg.reduce(_ & _)
 
     val fight_n = Module(new FightPerSide(params))
     val fight_s = Module(new FightPerSide(params))
@@ -482,30 +520,105 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     //         _.out_p.valid -> false.B
     //         ))) // init to a safe null state
 
-    val out_reg = RegInit(new OutPerSide(params), 
-        new OutPerSide(params).Lit(
-            _.out_n.bits -> DontCare,
-            _.out_s.bits -> DontCare,
-            _.out_w.bits -> DontCare,
-            _.out_e.bits -> DontCare,
-            _.out_p.bits -> DontCare,
-            _.out_n.ready -> true.B ,
-            _.out_s.ready -> true.B,
-            _.out_e.ready -> true.B,
-            _.out_w.ready -> true.B,
-            _.out_p.ready -> true.B,
-            _.out_n.valid -> false.B,
-            _.out_s.valid -> false.B,
-            _.out_e.valid -> false.B,
-            _.out_w.valid -> false.B,
-            _.out_p.valid -> false.B
-            ))
+    val out_n_ready_reg = RegInit(true.B)
+    val out_s_ready_reg = RegInit(true.B)
+    val out_e_ready_reg = RegInit(true.B)
+    val out_w_ready_reg = RegInit(true.B)
+    val out_p_ready_reg = RegInit(true.B)
+    
+    val out_n_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+    val out_s_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+    val out_e_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+    val out_w_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+    val out_p_data_reg = RegEnable(0.U.asTypeOf(new Ship(params)), out_n_ready_reg)
+
+    val out_n_valid_reg = RegEnable(false.B, out_n_ready_reg)
+    val out_s_valid_reg = RegEnable(false.B, out_n_ready_reg)
+    val out_e_valid_reg = RegEnable(false.B, out_n_ready_reg)
+    val out_w_valid_reg = RegEnable(false.B, out_n_ready_reg)
+    val out_p_valid_reg = RegEnable(false.B, out_n_ready_reg)
     
     //first we fight per side, then per switch
-    out_reg.out_n <> fight_global.io.out.out_n 
-    out_reg.out_s <> fight_global.io.out.out_s 
-    out_reg.out_w <> fight_global.io.out.out_w
-    out_reg.out_e <> fight_global.io.out.out_e 
-    out_reg.out_p <> fight_global.io.out.out_p
+    out_n_data_reg := fight_global.io.out.out_n.bits 
+    out_n_valid_reg := fight_global.io.out.out_n.valid 
+    fight_global.io.out.out_n.ready := out_n_ready_reg
 
+    out_s_data_reg := fight_global.io.out.out_s.bits 
+    out_s_valid_reg := fight_global.io.out.out_s.valid 
+    fight_global.io.out.out_s.ready := out_s_ready_reg
+
+    out_e_data_reg := fight_global.io.out.out_e.bits 
+    out_e_valid_reg := fight_global.io.out.out_e.valid 
+    fight_global.io.out.out_e.ready := out_e_ready_reg
+
+    out_w_data_reg := fight_global.io.out.out_w.bits 
+    out_w_valid_reg := fight_global.io.out.out_w.valid 
+    fight_global.io.out.out_w.ready := out_w_ready_reg
+
+    out_p_data_reg := fight_global.io.out.out_p.bits 
+    out_p_valid_reg := fight_global.io.out.out_p.valid 
+    fight_global.io.out.out_p.ready := out_p_ready_reg
+
+    //final conn's to IO
+    io.out.out_n.bits := out_n_data_reg
+    io.out.out_n.valid := out_n_valid_reg
+    out_n_ready_reg := io.out.out_n.ready 
+
+    io.out.out_s.bits := out_s_data_reg 
+    io.out.out_s.valid := out_s_valid_reg 
+    out_s_ready_reg := io.out.out_s.ready 
+
+    io.out.out_w.bits := out_w_data_reg 
+    io.out.out_w.valid := out_w_valid_reg 
+    out_w_ready_reg := io.out.out_w.ready 
+
+    io.out.out_e.bits := out_e_data_reg 
+    io.out.out_e.valid := out_e_valid_reg 
+    out_e_ready_reg := io.out.out_e.ready 
+
+    io.out.out_p.bits := out_p_data_reg 
+    io.out.out_p.valid := out_p_valid_reg 
+    out_p_ready_reg := io.out.out_p.ready 
+
+
+}
+
+
+class NocBuilder(params: GameParameters) extends Module{
+    val io = IO(new Bundle{
+        val planets = Vec(params.noc_x_size, Vec(params.noc_y_size, new SectorBundle(params)))
+})
+
+    val switches = Seq.tabulate(params.noc_x_size, params.noc_y_size)((x, y) => Module(new NocSwitch(params, x, y)))
+
+    for (x <- 1 until (params.noc_x_size-1)){ //inner grid wiring
+        
+        for (y <- 1 until (params.noc_y_size-1)){
+            switches(x)(y).io.in.in_n <> switches(x)(y+1).io.out.out_s 
+            switches(x)(y).io.in.in_s <> switches(x)(y-1).io.out.out_n 
+            switches(x)(y).io.in.in_w <> switches(x-1)(y).io.out.out_e 
+            switches(x)(y).io.in.in_e <> switches(x+1)(y).io.out.out_w
+        }
+    }
+    for(y <- 0 until params.noc_y_size){
+        switches(0)(y).io.in.in_w <> switches(0)(y).io.out.out_w //feedback edges on edge of mesh
+        switches(params.noc_x_size)(y).io.in.in_e <> switches(params.noc_x_size)(y).io.out.out_e
+    }
+    for (x <- 0 until params.noc_x_size){
+        switches(x)(0).io.in.in_s <> switches(x)(0).io.out.out_s 
+        switches(x)(params.noc_y_size).io.in.in_n <> switches(x)(params.noc_y_size).io.out.out_n
+    }
+
+    //planet wiring harness?
+    for (x <- 0 until params.noc_x_size){
+        for (y <- 0 until params.noc_y_size){
+            switches(x)(y).io.in_p.bits := io.planets(x)(y).out.ship
+            switches(x)(y).io.in_p.valid := io.planets(x)(y).out.ship_valid
+            io.planets(x)(y).out.bp := !switches(x)(y).io.in_p.ready
+
+            io.planets(x)(y).in.ship := switches(x)(y).io.out.out_p.bits
+            io.planets(x)(y).in.ship_valid := switches(x)(y).io.out.out_p.valid
+            switches(x)(y).io.out.out_p.ready := !io.planets(x)(y).in.bp
+        }
+    }
 }
