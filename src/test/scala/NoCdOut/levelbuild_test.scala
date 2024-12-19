@@ -283,11 +283,43 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
             
             var cycle = 0
             
-            // TODO: This once the NOC signals are there.
-            //def get_noc_state_character( x : Int, y : Int ) : String = 
-            //{
-            //    if(  )
-            //}
+            def get_noc_state_character( x : Int, y : Int ) : String = 
+            {
+                if( dut.state_observation.has_combat(x)(y).peekValue().asBigInt == 1 )
+                {
+                    return "#"
+                }
+                else if( dut.state_observation.more_than_one_ship(x)(y).peekValue().asBigInt == 1 )
+                {
+                    return "X"
+                }
+                else if( dut.state_observation.one_ship(x)(y).peekValue().asBigInt == 1 )
+                {
+                    return "v"
+                }
+                else
+                {
+                    return " "
+                }
+                /*
+                if( space_states[x][y].noc.combat )
+                {
+                    printf( "#" );
+                }
+                else if( space_states[x][y].noc.more_ship )
+                {
+                    printf( "%%" );
+                }
+                else if( space_states[x][y].noc.one_ship )
+                {
+                    printf( ">" );
+                }
+                else
+                {
+                    printf( " " );
+                }
+                */
+            }
             
             def print_planet_map() = 
             {
@@ -342,7 +374,7 @@ class levelbuild_test extends AnyFreeSpec with Matchers {
                                 le_string   += ". "
                             }
                         }
-                        //le_string += get_noc_state_character( x, y )
+                        le_string += get_noc_state_character( x, y )
                     }
                     println( le_string )
                 }

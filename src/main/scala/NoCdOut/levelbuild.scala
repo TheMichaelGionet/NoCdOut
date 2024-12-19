@@ -110,7 +110,11 @@ class LevelNocBuilder( params : GameParameters, default_buffer_depth : Int, plan
     
     val state_observation = IO( new Bundle
     {
-        val le_vec  = Vec( planet_descriptors.length, new PlanetStateBundle( params ) )
+        val le_vec              = Vec( planet_descriptors.length, new PlanetStateBundle( params ) )
+
+        val one_ship            = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
+        val more_than_one_ship  = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
+        val has_combat          = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
     } )
     
     val le_level    = Module( new LevelBuilder( params, default_buffer_depth, planet_descriptors ) )
@@ -125,6 +129,10 @@ class LevelNocBuilder( params : GameParameters, default_buffer_depth : Int, plan
             
             io.meta(x)(y)               <> le_level.io.meta(x)(y)
             io.le_vec(x)(y)             := le_level.io.le_vec(x)(y)
+            
+            state_observation.one_ship(x)(y)            := le_noc.io.one_ship(x)(y)
+            state_observation.more_than_one_ship(x)(y)  := le_noc.io.more_than_one_ship(x)(y)
+            state_observation.has_combat(x)(y)          := le_noc.io.has_combat(x)(y)
         }
     }
     
