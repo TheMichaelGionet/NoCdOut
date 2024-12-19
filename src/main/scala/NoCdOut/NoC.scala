@@ -264,6 +264,7 @@ class FightPerSide(params: GameParameters) extends Module {
     val io = IO(new Bundle{
         val ins = Vec(params.num_players, Flipped(Decoupled(new Ship(params))))
         val out = Decoupled(new Ship(params)) // consider changing this over to just the bits + valids, idk if we need readys if no regs or blocking logic
+        val has_combat = Output(Bool())
     })
 
     // commit combat between all sides >:D
@@ -306,6 +307,8 @@ class FightPerSide(params: GameParameters) extends Module {
     }
     //the idea is to take the strongest ship and throw everything else against it
     //guaranteed to only have one ship per side here
+    val has_combat = (second_max_strength =/= 0.U)
+    io.has_combat := has_combat
 }
 
 class FightGlobal(params: GameParameters) extends Module{
@@ -317,6 +320,8 @@ class FightGlobal(params: GameParameters) extends Module{
         val in_p = Flipped(Decoupled(new Ship(params)))
 
         val out = new OutPerSide(params)
+
+        val has_combat = Output(Bool())
     })
     io.in_n.ready := io.out.out_n.ready //combat is ALWAYS ready B)
     io.in_s.ready := io.out.out_s.ready
@@ -400,6 +405,8 @@ class FightGlobal(params: GameParameters) extends Module{
         io.out.out_p.valid := false.B
     }
 
+    val has_combat = (second_max_strength =/= 0.U)
+    io.has_combat := has_combat
 }
 
 
@@ -408,6 +415,10 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
         val in = new InPerSide(params) // one physical channel!
         val out = new OutPerSide(params)
         val in_p = Flipped(Decoupled(new Ship(params))) // planet i/o
+
+        val one_ship = Output(Bool())
+        val more_than_one_ship = Output(Bool())
+        val has_combat = Output(Bool())
     })
 
     //val vcs_in = Seq.fill(params.num_players)(Wire(new InPerSide(params)))
@@ -430,22 +441,7 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     val vc_in_e_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_e.valid, false.B, vc_in_e_ready_reg(j) && io.in.in_e.bits.general_id.side === j.U)))
 
     val vc_in_w_data_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_w.bits, 0.U.asTypeOf(new Ship(params)), vc_in_w_ready_reg(j) && io.in.in_w.bits.general_id.side === j.U)))// CURSED
-    val vc_in_w_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_w.valid, false.B, vc_in_w_ready_reg(j) && io.in.in_w.bits.general_id.side === j.U)))
-
-    // for(i <- 0 until params.num_players){//update VC if the side matches iff not backpressured
-    //     when(vc_in_reg(i).in_n.ready && (io.in.in_n.bits.general_id.side === i.U)){
-    //         vc_in_reg(i).in_n <> io.in.in_n
-    //     }
-    //     when(vc_in_reg(i).in_w.ready && (io.in.in_w.bits.general_id.side === i.U)){
-    //         vc_in_reg(i).in_w <> io.in.in_w
-    //     }
-    //     when(vc_in_reg(i).in_e.ready && (io.in.in_e.bits.general_id.side === i.U)){
-    //         vc_in_reg(i).in_e <> io.in.in_e
-    //     }
-    //     when(vc_in_reg(i).in_s.ready && (io.in.in_s.bits.general_id.side === i.U)){
-    //         vc_in_reg(i).in_s <> io.in.in_s
-    //     }
-    // }
+    val vc_in_w_valid_reg = VecInit((0 until params.num_players).map(j => RegEnable(io.in.in_w.valid, false.B, vc_in_w_ready_reg(j) && io.in.in_w.bits.general_id.side === j.U)))    
 
     val vc_out_wire = Wire(Vec(params.num_players, new OutPerSide(params)))  //output VC must be RegEnables, change the Vec Wrapper but use wires for now because I am LAZY
     val planet_in_ready_fanout = Wire(Vec(params.num_players, UInt(1.W)))  //fanout for planet ready signals
@@ -494,6 +490,14 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
         fight_p.io.ins(i) <> vc_out_wire(i).out_p
     }
 
+    val vc_combat = Wire(Vec(5, Bool()))
+
+    vc_combat(0) := fight_n.io.has_combat 
+    vc_combat(1) := fight_s.io.has_combat 
+    vc_combat(2) := fight_w.io.has_combat 
+    vc_combat(3) := fight_e.io.has_combat 
+    vc_combat(4) := fight_p.io.has_combat 
+
     val fight_global = Module(new FightGlobal(params))
     fight_global.io.in_n <> fight_n.io.out
     fight_global.io.in_s <> fight_s.io.out 
@@ -501,24 +505,8 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     fight_global.io.in_e <> fight_e.io.out 
     fight_global.io.in_p <> fight_p.io.out
 
-    // val vc_out_reg = RegInit(Vec(params.num_players, new OutPerSide(params)), Vec(params.num_players, 
-    //     new OutPerSide(params).Lit(
-    //         _.out_n.bits -> DontCare,
-    //         _.out_s.bits -> DontCare,
-    //         _.out_w.bits -> DontCare,
-    //         _.out_e.bits -> DontCare,
-    //         _.out_p.bits -> DontCare,
-    //         _.out_n.ready -> true.B ,
-    //         _.out_s.ready -> true.B,
-    //         _.out_e.ready -> true.B,
-    //         _.out_w.ready -> true.B,
-    //         _.out_p.ready -> true.B,
-    //         _.out_n.valid -> false.B,
-    //         _.out_s.valid -> false.B,
-    //         _.out_e.valid -> false.B,
-    //         _.out_w.valid -> false.B,
-    //         _.out_p.valid -> false.B
-    //         ))) // init to a safe null state
+    val has_combat_global = Wire(Bool())
+    has_combat_global := fight_global.io.has_combat
 
     val out_n_ready_reg = RegInit(true.B)
     val out_s_ready_reg = RegInit(true.B)
@@ -580,6 +568,13 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
     io.out.out_p.valid := out_p_valid_reg 
     out_p_ready_reg := io.out.out_p.ready 
 
+    val one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt) === 1.U)
+    val more_than_one_ship = ((PopCount(vc_in_n_valid_reg) + PopCount(vc_in_s_valid_reg) + PopCount(vc_in_e_valid_reg) + PopCount(vc_in_w_valid_reg) + out_n_valid_reg.asUInt + out_s_valid_reg.asUInt + out_w_valid_reg.asUInt + out_e_valid_reg.asUInt) > 1.U)
+    val combat_in_switch = (vc_combat.reduce(_ || _) || has_combat_global)
+
+    io.one_ship := one_ship
+    io.more_than_one_ship := more_than_one_ship
+    io.has_combat := combat_in_switch
 
 }
 
@@ -587,6 +582,10 @@ class NocSwitch(params: GameParameters, x: Int, y: Int) extends Module {
 class NocBuilder(params: GameParameters) extends Module{
     val io = IO(new Bundle{
         val planets = Vec(params.noc_x_size, Vec(params.noc_y_size, new SectorBundle(params)))
+
+        val one_ship = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
+        val more_than_one_ship = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
+        val has_combat = Vec(params.noc_x_size, Vec(params.noc_y_size, Output(Bool())))
 })
 
     val switches = Seq.tabulate(params.noc_x_size, params.noc_y_size)((x, y) => Module(new NocSwitch(params, x, y)))
@@ -644,6 +643,10 @@ class NocBuilder(params: GameParameters) extends Module{
             io.planets(x)(y).out.ship           <> switches(x)(y).io.out.out_p.bits
             io.planets(x)(y).out.ship_valid     <> switches(x)(y).io.out.out_p.valid
             switches(x)(y).io.out.out_p.ready   <> !io.planets(x)(y).out.bp
+
+            switches(x)(y).io.one_ship <> io.one_ship(x)(y)
+            switches(x)(y).io.more_than_one_ship <> io.more_than_one_ship(x)(y)
+            switches(x)(y).io.has_combat <> io.has_combat(x)(y)
         }
     }
 }
