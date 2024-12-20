@@ -27,11 +27,11 @@ class levelOneDescription {
     // and last but not least, Oobleck, who, well, made it through general academy so it's your problem now.
 
     val general_map : Map[String, Int] = Map( //assign their locations from 0-4!
-        "William" ->        0,
-        "Andy" ->           1,
-        "Skippy" ->         2,
-        "SpaceManMike" ->   3,
-        "Oobleck" ->        4
+        "Oobleck" ->        0,
+        "Skippy" ->         1,
+        "SpaceManMike" ->   2,
+        "William" ->        3,
+        "Andy" ->           4
     )
     // Generals are allocated to a planet and will be waiting at high command until their planet is captured, 
     // after which point, they will take command.
@@ -49,8 +49,8 @@ class levelOneDescription {
 
     val input_params    = new GameParametersInput
     {
-        noc_x_size          = 0x4 // Need smaller size for sanity's sake
-        noc_y_size          = 0x4
+        noc_x_size          = 0x8
+        noc_y_size          = 0x8
         num_generals        = 10
     }
 
@@ -62,7 +62,7 @@ class levelOneDescription {
     val Timur4 = new TimurBuilder( params, 8 )
     val Timur5 = new TimurBuilder( params, 9 )
     
-    val where_planets = Seq(Seq(0,1), Seq(0,2), Seq(2,3), Seq(3,0), Seq(2,0))
+    val where_planets = Seq(Seq(0,1), Seq(1,6), Seq(3,1), Seq(5,6), Seq(7,0))
 
     object GeneralFactory{
         def create(generalName: String, index: Int): GeneralBuilder = generalName match{
@@ -105,8 +105,8 @@ class levelOneDescription {
     
     val descriptor0 = new PlanetDescriptor
     {
-        resource_production_rate    = 5
-        max_resources               = 80
+        resource_production_rate    = 15
+        max_resources               = 150
         // game parameters will be supplied externally
         general_builders            = general_builders0
         general_ids                 = general_ids0
@@ -119,8 +119,8 @@ class levelOneDescription {
 
     val descriptor1 = new PlanetDescriptor
     {
-        resource_production_rate    = 10
-        max_resources               = 40
+        resource_production_rate    = 15
+        max_resources               = 90
         // game parameters will be supplied externally
         general_builders            = general_builders1
         general_ids                 = general_ids1
@@ -147,8 +147,8 @@ class levelOneDescription {
     
      val descriptor3 = new PlanetDescriptor
     {
-        resource_production_rate    = 8
-        max_resources               = 40
+        resource_production_rate    = 4
+        max_resources               = 50
         // game parameters will be supplied externally
         general_builders            = general_builders3
         general_ids                 = general_ids3
@@ -161,8 +161,8 @@ class levelOneDescription {
 
      val descriptor4 = new PlanetDescriptor
     {
-        resource_production_rate    = 4
-        max_resources               = 80
+        resource_production_rate    = 5
+        max_resources               = 40
         // game parameters will be supplied externally
         general_builders            = general_builders4
         general_ids                 = general_ids4
