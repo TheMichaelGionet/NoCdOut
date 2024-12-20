@@ -48,10 +48,11 @@ class levelOneDescription {
     // our scanners report that planet 2 is very rich in resources! capturing it will be of great use!
 
     val input_params    = new GameParametersInput
-        {
-            noc_x_size          = 0x4 // Need smaller size for sanity's sake
-            noc_y_size          = 0x4 
-        }
+    {
+        noc_x_size          = 0x4 // Need smaller size for sanity's sake
+        noc_y_size          = 0x4
+        num_generals        = 10
+    }
 
     val params  = new GameParameters( input_params )
 
