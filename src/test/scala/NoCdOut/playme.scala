@@ -173,11 +173,15 @@ class playable extends AnyFreeSpec with Matchers {
                 
                 if( a_side == 0 )
                 {
-                    println( "You Win!" )
+                    println( "======================================" )
+                    println( "============   You Win!   ============" )
+                    println( "======================================" )
                 }
                 else
                 {
-                    println( "You lost :(" )
+                    println( "======================================" )
+                    println( "============  You lost :( ============" )
+                    println( "======================================" )
                 }
                 return true
             }
@@ -210,15 +214,22 @@ class playable extends AnyFreeSpec with Matchers {
                 {
                     Thread.sleep( 250 )
                 }
-                else
+                else if( cycle < 1500 )
                 {
                     Thread.sleep( 100 )
+                }
+                else
+                {
+                    // Just fast enough to have a coherent render. 
+                    Thread.sleep( 15 )
                 }
             }
             
             if( cycle == cycle_limit )
             {
-                println( "Stalemate :O" )
+                println( "======================================" )
+                println( "============ Stalemate :O ============" )
+                println( "======================================" )
             }
         }
     }

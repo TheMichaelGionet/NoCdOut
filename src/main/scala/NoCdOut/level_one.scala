@@ -40,10 +40,14 @@ class levelOneDescription {
     //planets will be identified by (starting team [Friendly/Hostile/None], Planet Identifier)
     //Empty space is denoted by ****
     /* 
-    ****|****| H4 | H3 
-     F0 |****|****|****
-     F1 |****|****|****
-    ****|****| N2 |****
+    ****|****|****|****|****|****|****| H4 
+     F0 |****|****| N2 |****|****|****|****
+    ****|****|****|****|****|****|****|****
+    ****|****|****|****|****|****|****|****
+    ****|****|****|****|****|****|****|****
+    ****|****|****|****|****|****|****|****
+    ****| F1 |****|****|****| H3 |****|****
+    ****|****|****|****|****|****|****|****
      */
     // our scanners report that planet 2 is very rich in resources! capturing it will be of great use!
 
