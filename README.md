@@ -10,6 +10,9 @@ Alternatively, pull this docker container which already has chisel setup in it:
 docker pull themichaelgionet/zhw_container2
 ```
 ## Pull this repo
+```bash
+git clone https://github.com/TheMichaelGionet/NoCdOut.git
+```
 
 Congrats, you're setup now.
 
