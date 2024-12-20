@@ -5,10 +5,20 @@ NoCdOut: A 4X space simulator on a NoC
 ## Install Chisel
 Follow these instructions https://www.chisel-lang.org/docs/installation
 
-Alternatively, pull this docker container which already has chisel setup in it: 
+Alternatively, pull this docker container which already has chisel and sbt setup in it: 
 ```bash
 docker pull themichaelgionet/zhw_container2
 ```
+After pulling the container and doing
+```bash
+docker run -it themichaelgionet/zhw_container2:latest bash
+```
+Navigate to the "/chipyard/" directory and do
+```bash
+source env.sh
+```
+Now the rest can be done.
+
 ## Pull this repo
 ```bash
 git clone https://github.com/TheMichaelGionet/NoCdOut.git
