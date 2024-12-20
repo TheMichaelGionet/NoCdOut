@@ -105,6 +105,8 @@ The NoC topology is a bidirectional mesh, which was chosen because it can best r
 - Some general goals for the NoC include minimizing packets in flight to speed up arrival times and throughput of the NoC by having more - combat and always prioritizing packets leaving the NoC over entering the NoC.
 
 
+Diagrams can be found in the /documentation/ subdirectory. 
+
 ### Planets/PEs:
 Every planet has 3 main things:
 - Resources
