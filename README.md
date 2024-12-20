@@ -71,11 +71,16 @@ Which respectively refers to "nothing is being routed", "one fleet is being rout
 
 ## How to Play:
 
-in the file /NoCdOut/src/main/scala/NoCdOut/levelbuild.scala, there is a list of generals commented out that you can select to play against a set of enemy generals. Uncomment the general that you want to assign to each planet and in a terminal, do
+in the file /NoCdOut/src/main/scala/NoCdOut/level_one.scala, there is a list of general_assignments that looks like:
+```scala
+
+```
+Change the number next to each general from 0 to 4 to assign them to different planets. Once that is done, run this in the topmost directory /NoCdOut/ to see how the game plays out:
+
 ```bash
 sbt test
 ```
-while in the top most /NoCdOut/ directory. (Install SBT from https://www.scala-sbt.org/ if you don't have it.)
+Install SBT from https://www.scala-sbt.org/ if you don't have it.
 
 
 # Infoz
