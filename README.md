@@ -73,7 +73,13 @@ Which respectively refers to "nothing is being routed", "one fleet is being rout
 
 in the file /NoCdOut/src/main/scala/NoCdOut/level_one.scala, there is a list of general_assignments that looks like:
 ```scala
-
+val general_map : Map[String, Int] = Map( //assign their locations from 0-4!
+    "William" ->        0,
+    "Andy" ->           1,
+    "Skippy" ->         2,
+    "SpaceManMike" ->   3,
+    "Oobleck" ->        4
+)
 ```
 Change the number next to each general from 0 to 4 to assign them to different planets. Once that is done, run this in the topmost directory /NoCdOut/ to see how the game plays out:
 
@@ -81,6 +87,8 @@ Change the number next to each general from 0 to 4 to assign them to different p
 sbt test
 ```
 Install SBT from https://www.scala-sbt.org/ if you don't have it.
+
+A high level description of each general is given below. 
 
 
 # Infoz
