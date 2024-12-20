@@ -75,7 +75,7 @@ in the file /NoCdOut/src/main/scala/NoCdOut/levelbuild.scala, there is a list of
 ```bash
 sbt test
 ```
-while in the top most /NoCdOut/ directory. 
+while in the top most /NoCdOut/ directory. (Install SBT from https://www.scala-sbt.org/ if you don't have it.)
 
 
 # Infoz
@@ -84,10 +84,12 @@ while in the top most /NoCdOut/ directory.
 
 ### The NoC:
 The NoC topology is a bidirectional mesh, which was chosen because it can best represent space. 
-
-
-
-TODO: Ryan
+Within the NoC, packets arrive and are registered into input registers per virtual channel (which is per team) and are then routed per team using horizontal-first routing to ensure deadlock free routing on a mesh.
+Upon completion, all VCs that are competing for an output are subjected to combat, in which the strongest ship wins and is damaged according to the strength of the second strongest ship. Complete destruction is very possible.
+After those fights have been resolved, they are mashed into a global fight across the whole switch, in which the same process occurs, but this time there can be multiple ships from the same side competing, so logic must exist here to sum up strengths and spread out the damage fairly.
+We chose to have a router per VC instead of a global combat per side as it seemed cheaper in the long run as the routers are fairly clean mux/LUT-blobs whereas the global combat has a lot of costly operations that seemed worth not using. Also, when the team size is small, it is a small number of routers instead of an additional combat unit per side (a fixed number).
+In relation to the construction of the switch, only the input and output were pipelined in the hopes of minimizing the number of execution cycles of simulation and maximizing the number of routed packets per cycle (destroyed spaceships are free real estate!). In deployment to FPGA, length of the critical path within the switch would be investigated and pipelined if deemed to be an area of performance loss.
+Some general goals for the NoC include minimizing packets in flight to speed up arrival times and throughput of the NoC by having more combat and always prioritizing packets leaving the NoC over entering the NoC.
 
 
 ### Planets/PEs:
@@ -144,10 +146,13 @@ To give a high level description of each general:
 - Level Builder + NoC Integration
 
 ### Ryan:
-- Made the NoC:
-    - Switch
-    - Combat Unit
-    - TODO: Fill this in
+- Made the Parametrized NoC:
+    - Router
+    - Combat Units
+    - Switch with Backpressure propogation
+    - Noc Instantiator
+- Made level one
+- Was(is) deathly ill and hard carried by Michael
 
 
 # Disclaimer:
